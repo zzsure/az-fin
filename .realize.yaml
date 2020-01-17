@@ -1,0 +1,38 @@
+settings:
+  legacy:
+    force: false
+    interval: 0s
+schema:
+  - name: az-fin
+    path: .
+    env:
+      ARG: server
+    commands:
+      install:
+        status: true
+        method: go build -o ./az-fin -mod=vendor
+      run:
+        status: true
+        method: ./az-fin
+        args:
+          - server
+    args:
+      - server
+      - --conf=./run/config.toml
+    watcher:
+      extensions:
+        - go
+        - toml
+      paths:
+        - /
+      ignore:
+        paths:
+          - .git
+          - .realize
+          - vendor
+          - static
+          - test
+          - log
+          - asset
+          - redis
+          - doc

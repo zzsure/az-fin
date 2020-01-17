@@ -1,2 +1,1 @@
 # az-fin
-az finance
