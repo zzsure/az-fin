@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/urfave/cli"
 	"az-fin/cmd/server"
 	"az-fin/cmd/tool"
+	"github.com/urfave/cli"
 	"os"
 )
 
@@ -13,6 +13,7 @@ func main() {
 	app.Commands = []cli.Command{
 		server.Server,
 		tool.InitDB,
+		tool.History,
 	}
 	err := app.Run(os.Args)
 	if err != nil {

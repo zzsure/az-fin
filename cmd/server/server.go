@@ -3,6 +3,7 @@ package server
 import (
 	"az-fin/conf"
 	"az-fin/controller/v1"
+	"az-fin/library/db"
 	"az-fin/library/log"
 	"az-fin/middleware"
 	"az-fin/modules/cron"
@@ -31,7 +32,7 @@ var Server = cli.Command{
 func run(c *cli.Context) {
 	conf.Init(c.String("conf"), c.String("args"))
 	log.Init()
-	//db.Init()
+	db.Init()
 	cron.Init()
 
 	_ = GinEngine().Run(conf.Config.Server.Listen)

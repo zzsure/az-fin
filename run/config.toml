@@ -10,7 +10,7 @@ Secret = "U4LOTsSWEASOCXNl4lzyg0rOyGztm1so"
     "gZmZHTdPhnnYX9PPJ0BXTl5BcxIj5hBv" = "830NOp3sbxGJQBzS9onXr0ud01mmm1Vr"
 
 [Database]
-HostPort = "tcp(127.0.0.1:3306)"
+HostPort = "tcp(127.0.0.1:6136)"
 UserPassword = "root:X5Mo%eUT"
 DB = "az_fin"
 [Database.Conn]
@@ -20,3 +20,10 @@ DB = "az_fin"
 
 [Log]
 Type = "raw"
+
+[History]
+CoinCapID = "bitcoin"
+Interval = "m1"
+StartMillTime = 1577808000000
+EndMillTime = 1577980800000
+MaxSleepSecond = 20

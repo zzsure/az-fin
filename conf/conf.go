@@ -1,8 +1,8 @@
 package conf
 
 import (
-	"github.com/koding/multiconfig"
 	"az-fin/library/util"
+	"github.com/koding/multiconfig"
 	"strings"
 	"time"
 )
@@ -35,6 +35,14 @@ type ConfigTOML struct {
 		Type  string `default:"json" flagUsage:"日志格式，json|raw"`
 		Level int    `default:"5" flagUsage:"日志级别：0 CRITICAL, 1 ERROR, 2 WARNING, 3 NOTICE, 4 INFO, 5 DEBUG"`
 	} `flagUsage:"服务日志配置"`
+
+	History struct {
+		CoinCapID      string `required:"true" flagUsage:"获取的币种"`
+		Interval       string `required:"true" flagUsage:"获取的币种的间隔，m1, m5, m15, m30, h1, h2, h6, h12, d1"`
+		StartMillTime  int64  `required:"true" flagUsage:"获取数据的开始时间"`
+		EndMillTime    int64  `required:"true" flagUsage:"获取数据的结束时间"`
+		MaxSleepSecond int    `required:"true" flagUsage:"最长访问http休息时间"`
+	}
 }
 
 func (c *ConfigTOML) IsProduction() bool {
