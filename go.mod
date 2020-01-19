@@ -13,6 +13,7 @@ require (
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.8 // indirect
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
+	github.com/robfig/cron v1.2.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/urfave/cli v1.20.0
 	golang.org/x/sys v0.0.0-20190610200419-93c9922d18ae // indirect

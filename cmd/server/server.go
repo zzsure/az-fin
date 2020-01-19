@@ -1,12 +1,13 @@
 package server
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/urfave/cli"
 	"az-fin/conf"
 	"az-fin/controller/v1"
 	"az-fin/library/log"
 	"az-fin/middleware"
+	"az-fin/modules/cron"
+	"github.com/gin-gonic/gin"
+	"github.com/urfave/cli"
 )
 
 var Server = cli.Command{
@@ -31,6 +32,7 @@ func run(c *cli.Context) {
 	conf.Init(c.String("conf"), c.String("args"))
 	log.Init()
 	//db.Init()
+	cron.Init()
 
 	_ = GinEngine().Run(conf.Config.Server.Listen)
 }

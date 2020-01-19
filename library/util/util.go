@@ -1,9 +1,10 @@
 package util
 
 import (
+	"az-fin/library/util/net"
 	"encoding/json"
 	"fmt"
-	"az-fin/library/util/net"
+	"strings"
 )
 
 func GenServerUUID() string {
@@ -17,4 +18,8 @@ func PrettyPrint(v interface{}) (err error) {
 		fmt.Println(string(b))
 	}
 	return
+}
+
+func GetURL(baseURL, uri string) string {
+	return fmt.Sprintf("%s/%s", strings.TrimRight(baseURL, "/"), strings.TrimLeft(uri, "/"))
 }

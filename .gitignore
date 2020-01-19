@@ -1,0 +1,10 @@
+.idea
+.vscode/
+.DS_Store
+az-fin
+log/
+bin/
+data/
+run/log/
+run/az-fin
+build/az-fin
