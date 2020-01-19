@@ -49,7 +49,6 @@ func ServerLogErr(c *gin.Context, logger *logging.Logger, msg string) {
 	ServerErr(c, msg)
 }
 
-type AssetResults []AssetResult
 type AssetResult struct {
 	CoinCapID         string `json:"id"`
 	Rank              string `json:"rank"`
@@ -63,3 +62,13 @@ type AssetResult struct {
 	ChangePercent24Hr string `json:"changePercent24Hr"`
 	Vwap24Hr          string `json:"vwap24Hr"`
 }
+type AssetResults []AssetResult
+
+type RateResult struct {
+	CoinCapID      string `json:"id"`
+	Symbol         string `json:"symbol"`
+	CurrencySymbol string `json:"currencySymbol"`
+	RateUsd        string `json:"rateUsd"`
+	Type           string `json:"type"`
+}
+type RateResults []RateResult
