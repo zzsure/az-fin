@@ -41,3 +41,7 @@ func GetFormatTime(t time.Time) string {
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	return t.In(loc).Format("2006-01-02 15:04:05")
 }
+
+func GetMillUnixTime() int64 {
+	return time.Now().UnixNano() / 1e6
+}

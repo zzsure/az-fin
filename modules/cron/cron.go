@@ -2,32 +2,18 @@ package cron
 
 import (
 	"az-fin/consts"
+	"az-fin/controller/response"
 	"az-fin/library/util"
 	"az-fin/library/util/net/http"
 	"az-fin/models"
 	"encoding/json"
+	"github.com/buger/jsonparser"
 	"github.com/op/go-logging"
 	"github.com/robfig/cron"
-	"github.com/buger/jsonparser"
 )
 
 var c *cron.Cron
 var logger = logging.MustGetLogger("modules/cron")
-
-type AssetResults []AssetResult
-type AssetResult struct {
-	CoinCapID         string `json:"id"`
-	Rank              string `json:"rank"`
-	Symbol            string `json:"symbol"`
-	Name              string `json:"name"`
-	Supply            string `json:"supply"`
-	MaxSupply         string `json:"maxSupply"`
-	MarketCapUsd      string `json:"marketCapUsd"`
-	VolumeUsd24Hr     string `json:"volumeUsd24Hr"`
-	PriceUsd          string `json:"priceUsd"`
-	ChangePercent24Hr string `json:"changePercent24Hr"`
-	Vwap24Hr          string `json:"vwap24Hr"`
-}
 
 func Init() {
 	c = cron.New()
@@ -50,7 +36,7 @@ func getAssetsCron() {
 	})
 }
 
-func dealAssetResults(assetResults AssetResults) {
+func dealAssetResults(assetResults response.AssetResults) {
 	for _, assetResult := range assetResults {
 		logger.Info("asset result is: ", assetResult)
 		asset := &models.Asset{
@@ -65,6 +51,7 @@ func dealAssetResults(assetResults AssetResults) {
 			PriceUsd:          assetResult.PriceUsd,
 			ChangePercent24Hr: assetResult.ChangePercent24Hr,
 			Vwap24Hr:          assetResult.Vwap24Hr,
+			MillUnixTime:      util.GetMillUnixTime(),
 		}
 		err := asset.Save()
 		if err != nil {
@@ -73,14 +60,14 @@ func dealAssetResults(assetResults AssetResults) {
 	}
 }
 
-func getAssets() (AssetResults, error) {
+func getAssets() (response.AssetResults, error) {
 	url := util.GetURL(consts.COINCAP_URL, consts.ASSETS_URI)
 	b, err := http.Get(url, nil)
 	if err != nil {
 		return nil, err
 	}
 	data, _, _, _ := jsonparser.Get(b, "data")
-	var assetResults AssetResults
+	var assetResults response.AssetResults
 	if err := json.Unmarshal(data, &assetResults); err != nil {
 		return nil, err
 	}

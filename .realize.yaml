@@ -17,7 +17,7 @@ schema:
         args:
           - server
     args:
-      - history
+      - server
       - --conf=./run/config.toml
     watcher:
       extensions:
