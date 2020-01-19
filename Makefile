@@ -5,9 +5,12 @@ BIN=$(strip $(MAIN))
 
 export GOPATH=$(shell pwd)/../../../../
 export AZBIT_KUBERNETES_IDC=suzhou
+export GITTAG=$(shell git describe --tags `git rev-list --tags --max-count=1`)
+export GITHASH=$(shell git rev-list HEAD -n 1 | cut -c 1-)
+export GITBRANCH=$(shell git symbolic-ref --short -q HEAD)
 
 build:
-	go build -tags=jsoniter -x -o run/$(BIN) gitlab.azbit.cn/web/$(MAIN_PKG)
+	go build -tags=jsoniter -x -o run/$(BIN) . 
 
 dev:
 	go run main.go $(ARG)
@@ -19,11 +22,7 @@ init:
 	cd run && TARGET='run' ARG='init' docker-compose run --rm az-fin-devel
 
 docker-build:
-	#cd run && \
-	#TARGET='build' ARG='server' docker-compose run --rm az-fin-devel && cp $(BIN) ../build/ &&
-	cd run && cp $(BIN) ../build/ && \
-	cd ../build && \
-	docker build -t zzsure/az-fin:$(TAG) . && \
-	docker push zzsure/az-fin:$(TAG)
+	docker build . -t zzsure/az-fin:$(GITTAG) && \
+	docker push zzsure/az-fin:$(GITTAG)
 
 .PHONY: build
