@@ -2,6 +2,7 @@ package util
 
 import (
 	"az-fin/library/util/net"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -44,4 +45,8 @@ func GetFormatTime(t time.Time) string {
 
 func GetMillUnixTime() int64 {
 	return time.Now().UnixNano() / 1e6
+}
+
+func BytesToInt64(buf []byte) int64 {
+	return int64(binary.BigEndian.Uint64(buf))
 }

@@ -31,6 +31,14 @@ type ConfigTOML struct {
 		}
 	}
 
+	Redis struct {
+		IsUse    bool   `default:"true" flagUsage:"是否开启缓存"`
+		Addr     string `flagUsage:"Redis地址"`
+		Password string `default:"" flagUsage:"Redis密码"`
+		DB       int    `default:"0" flagUsage:"Redis数据库"`
+		PoolSize int    `default:"100"  flagUsage:"Redis连接池大小"`
+	}
+
 	Log struct {
 		Type  string `default:"json" flagUsage:"日志格式，json|raw"`
 		Level int    `default:"5" flagUsage:"日志级别：0 CRITICAL, 1 ERROR, 2 WARNING, 3 NOTICE, 4 INFO, 5 DEBUG"`

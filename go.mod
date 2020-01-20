@@ -8,6 +8,7 @@ require (
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/gin-gonic/gin v1.4.0
+	github.com/go-redis/redis v6.15.6+incompatible
 	github.com/jinzhu/gorm v1.9.8
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/koding/multiconfig v0.0.0-20171124222453-69c27309b2d7

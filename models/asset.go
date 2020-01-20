@@ -4,7 +4,7 @@ import "az-fin/library/db"
 
 type Asset struct {
 	Model
-	CoinCapID         string `gorm:"type:varchar(255);comment:'unique identifier for asset'" json:"coin_cap_id"`
+	CoinCapID         string `gorm:"type:varchar(255);unique_index:u_id_time_idx;comment:'unique identifier for asset'" json:"coin_cap_id"`
 	Rank              string `gorm:"type:varchar(255);comment:'rank is in ascending order - this number is directly associated with the marketcap whereas the highest marketcap receives rank 1'" json:"rank"`
 	Symbol            string `gorm:"type:varchar(255);comment:'most common symbol used to identify this asset on an exchange'" json:"symbol"`
 	Name              string `gorm:"type:varchar(255);comment:'proper name for asset'" json:"name"`
@@ -15,7 +15,7 @@ type Asset struct {
 	PriceUsd          string `gorm:"type:varchar(255);comment:'volume-weighted price based on real-time market data, translated to USD'" json:"price_usd"`
 	ChangePercent24Hr string `gorm:"type:varchar(255);comment:'the direction and value change in the last 24 hours'" json:"change_percent_24hr"`
 	Vwap24Hr          string `gorm:"type:varchar(255);comment:'Volume Weighted Average Price in the last 24 hours'" json:"vwap_24hr"`
-	MillUnixTime      int64  `gorm:"comment:'timestamp in UNIX in milliseconds'" json:"mill_unix_time"`
+	MillUnixTime      int64  `gorm:"unique_index:u_id_time_idx;comment:'timestamp in UNIX in milliseconds'" json:"mill_unix_time"`
 }
 
 func (a *Asset) Save() error {

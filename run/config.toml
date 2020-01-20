@@ -18,6 +18,13 @@ DB = "az_fin"
     MaxIdle = 10
     MaxOpen = 80
 
+[Redis]
+IsUse = true
+Addr = "127.0.0.1:6138"
+Password = "X2o^tv1^"
+DB = 1
+PoolSize = 5
+
 [Log]
 Type = "raw"
 

@@ -5,6 +5,7 @@ import (
 	"az-fin/controller/v1"
 	"az-fin/library/db"
 	"az-fin/library/log"
+	"az-fin/library/redis"
 	"az-fin/middleware"
 	"az-fin/modules/cron"
 	"github.com/gin-gonic/gin"
@@ -33,6 +34,7 @@ func run(c *cli.Context) {
 	conf.Init(c.String("conf"), c.String("args"))
 	log.Init()
 	db.Init()
+	redis.Init()
 	cron.Init()
 
 	_ = GinEngine().Run(conf.Config.Server.Listen)
@@ -61,5 +63,6 @@ func V1(r *gin.Engine) {
 		g.POST("/echo", v1.Echo)
 		g.GET("/price/excel", v1.PriceExcel)
 		g.GET("/price/test", v1.PriceTest)
+		g.GET("/price/list", v1.PriceList)
 	}
 }
