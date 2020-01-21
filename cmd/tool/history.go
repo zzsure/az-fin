@@ -34,7 +34,7 @@ func runHistory(c *cli.Context) {
 	conf.Init(c.String("conf"), c.String("args"))
 	log.Init()
 	db.Init()
-	db.DB.LogMode(true)
+	db.DB.LogMode(conf.Config.Database.LogMode)
 	if conf.Config.History.EndMillTime <= conf.Config.History.StartMillTime {
 		logger.Error("end mill time should greater than start mill time")
 		return

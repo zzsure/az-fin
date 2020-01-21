@@ -1,11 +1,11 @@
 package tool
 
 import (
-	"github.com/urfave/cli"
 	"az-fin/conf"
 	"az-fin/library/db"
 	"az-fin/library/log"
 	"az-fin/models"
+	"github.com/urfave/cli"
 )
 
 var InitDB = cli.Command{
@@ -30,7 +30,7 @@ func runInitDB(c *cli.Context) {
 	conf.Init(c.String("conf"), c.String("args"))
 	log.Init()
 	db.Init()
-	db.DB.LogMode(true)
+	db.DB.LogMode(conf.Config.Database.LogMode)
 
 	// TODO: 改为传参
 	if true {

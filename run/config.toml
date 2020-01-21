@@ -13,6 +13,7 @@ Secret = "U4LOTsSWEASOCXNl4lzyg0rOyGztm1so"
 HostPort = "tcp(127.0.0.1:6136)"
 UserPassword = "root:X5Mo%eUT"
 DB = "az_fin"
+LogMode = true
 [Database.Conn]
     MaxLifeTime = 600
     MaxIdle = 10
