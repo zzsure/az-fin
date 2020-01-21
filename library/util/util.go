@@ -43,6 +43,10 @@ func GetFormatTime(t time.Time) string {
 	return t.In(loc).Format("2006-01-02 15:04:05")
 }
 
+func GetUnixTime() int64 {
+	return time.Now().Unix()
+}
+
 func GetMillUnixTime() int64 {
 	return time.Now().UnixNano() / 1e6
 }

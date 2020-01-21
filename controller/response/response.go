@@ -72,3 +72,10 @@ type RateResult struct {
 	Type           string `json:"type"`
 }
 type RateResults []RateResult
+
+type PriceResult struct {
+	PriceUsd          string `json:"priceUsd"`
+	Time              int64  `json:"time"`
+	CirculatingSupply string `json:"circulatingSupply"`
+}
+type PriceResults []PriceResult

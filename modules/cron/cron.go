@@ -1,6 +1,8 @@
 package cron
 
 import (
+	"az-fin/conf"
+	"az-fin/library/util"
 	"az-fin/modules/asset"
 
 	"github.com/op/go-logging"
@@ -13,6 +15,7 @@ var logger = logging.MustGetLogger("modules/cron")
 func Init() {
 	c = cron.New()
 	getAssetsCron()
+	getAssetHistoryCron()
 	c.Start()
 }
 
@@ -34,5 +37,21 @@ func getAssetsCron() {
 			logger.Error("deal asset result err: ", err)
 		}
 		logger.Info("get coincap assets end")
+	})
+}
+
+func getAssetHistoryCron() {
+	_ = c.AddFunc("@every 1m", func() {
+		logger.Info("get coincap asset history begin")
+		now := util.GetMillUnixTime()
+		priceResults, err := asset.GetPrices(conf.Config.History.CoinCapID, conf.Config.History.Interval, now-60*1000, now)
+		if err != nil {
+			logger.Error("get price result err: ", err)
+		}
+		err = asset.DealPrices(priceResults)
+		if err != nil {
+			logger.Error("save price err: ", err)
+		}
+		logger.Info("get coincap asset history end")
 	})
 }

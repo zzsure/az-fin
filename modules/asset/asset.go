@@ -9,8 +9,11 @@ import (
 	"az-fin/library/util/net/http"
 	"az-fin/models"
 	"encoding/json"
+	"fmt"
 	"github.com/buger/jsonparser"
 	"github.com/op/go-logging"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -62,4 +65,42 @@ func DealAssetResults(assetResults response.AssetResults, millUnixTime int64) ([
 		redis.GoRedisClient.Set(consts.COINCAP_ASSETS_KEY, string(b), time.Second*consts.REDIS_KEY_EXPIRED_SECONDS)
 	}
 	return assets, nil
+}
+
+func GetPrices(coinCapID, interval string, start, end int64) (response.PriceResults, error) {
+	url := fmt.Sprintf("%s/%s/%s/history?interval=%s&start=%d&end=%d", strings.TrimRight(consts.COINCAP_URL, "/"), strings.TrimLeft(consts.ASSETS_URI, "/"), coinCapID, interval, start, end)
+	logger.Info("get url: ", url)
+	b, err := http.Get(url, nil)
+	logger.Info("get price: ", string(b))
+	if err != nil {
+		return nil, err
+	}
+	data, _, _, _ := jsonparser.Get(b, "data")
+	var priceResults response.PriceResults
+	if err := json.Unmarshal(data, &priceResults); err != nil {
+		return nil, err
+	}
+	return priceResults, nil
+}
+
+func DealPrices(priceResults response.PriceResults) error {
+	for _, priceResult := range priceResults {
+		p, err := strconv.ParseFloat(priceResult.PriceUsd, 64)
+		if err != nil {
+			return err
+		}
+		s, _ := strconv.ParseFloat(priceResult.CirculatingSupply, 64)
+		price := &models.Price{
+			CoinCapID:         conf.Config.History.CoinCapID,
+			Interval:          conf.Config.History.Interval,
+			PriceUsd:          p,
+			MillUnixTime:      priceResult.Time,
+			CirculatingSupply: s,
+		}
+		err = price.Save()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
