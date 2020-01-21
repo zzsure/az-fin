@@ -10,5 +10,7 @@ RUN echo "Asia/Shanghai" > /etc/timezone
 RUN rm -f /etc/localtime
 RUN dpkg-reconfigure -f noninteractive tzdata
 RUN apt-get install -y ca-certificates
-WORKDIR /root/deploy
-COPY --from=build /root/code/zzsure/az-fin ./az-fin
+
+WORKDIR /root/deploy/az-fin
+COPY --from=build /root/code/zzsure/az-fin/az-fin ./az-fin
+COPY --from=build /root/code/zzsure/az-fin/run/config.toml ./config.toml
