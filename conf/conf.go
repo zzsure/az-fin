@@ -29,7 +29,7 @@ type ConfigTOML struct {
 			MaxIdle     int `default:"10" flagUsage:"最多空闲连接数"`
 			MaxOpen     int `default:"80" flagUsage:"最多打开连接数"`
 		}
-		LogMode bool `required:"true" flagUsage:"是否打印SQL日志"`
+		LogMode bool `default:"false" flagUsage:"是否打印SQL日志"`
 	}
 
 	Redis struct {
