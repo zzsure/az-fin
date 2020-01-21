@@ -62,7 +62,6 @@ func V1(r *gin.Engine) {
 	{
 		g.POST("/echo", v1.Echo)
 		g.GET("/price/excel", v1.PriceExcel)
-		g.GET("/price/test", v1.PriceTest)
 		g.GET("/price/list", v1.PriceList)
 	}
 }

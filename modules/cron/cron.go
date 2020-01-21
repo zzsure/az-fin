@@ -23,11 +23,16 @@ func getAssetsCron() {
 	//}
 	//dealAssetResults(assetResults)
 	// hourly,daily,weekly,monthly,yearly
-	_ = c.AddFunc("every 1m", func() {
+	_ = c.AddFunc("@every 1m", func() {
+		logger.Info("get coincap assets begin")
 		assetResults, millUnixTime, err := asset.GetAssets()
 		if err != nil {
 			logger.Error("get assets err: ", err)
 		}
-		asset.DealAssetResults(assetResults, millUnixTime)
+		_, err = asset.DealAssetResults(assetResults, millUnixTime)
+		if err != nil {
+			logger.Error("deal asset result err: ", err)
+		}
+		logger.Info("get coincap assets end")
 	})
 }

@@ -111,13 +111,3 @@ func getCoinCapPrice(id string) (float64, error) {
 	}
 	return strconv.ParseFloat(assetResult.PriceUsd, 64)
 }
-
-func PriceTest(c *gin.Context) {
-	prices := [11]float64{0.59, 100.9, 10.9, 8.9, 10.2, 11, 12.9}
-	priceText := ""
-	for _, price := range prices {
-		priceText += fmt.Sprintf("%f", price) + "\n"
-	}
-	c.String(200, priceText)
-	//response.ServerSucc(c, "success", priceText)
-}
