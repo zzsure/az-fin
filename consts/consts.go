@@ -11,3 +11,4 @@ const RMB_COINCAP_ID = "chinese-yuan-renminbi"
 const COINCAP_ASSETS_KEY = "coincap_assets"
 const REDIS_NX_EXPIRED_SECONDS = 5
 const REDIS_KEY_EXPIRED_SECONDS = 24 * 60 * 60
+const HUOBI_BALANCE_KEY = "huobi_balance"

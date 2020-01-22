@@ -38,6 +38,30 @@ func PriceExcel(c *gin.Context) {
 		return
 	}
 	priceText += fmt.Sprintf("%f", rmbRate)
+
+	huobiBalance := 0.0
+	if conf.Config.Redis.IsUse {
+		cacheData, err := redis.GoRedisClient.Get(consts.HUOBI_BALANCE_KEY).Result()
+		if err != goRedis.Nil {
+			balanceMap := make(map[string]float64)
+			err := json.Unmarshal([]byte(cacheData), &balanceMap)
+			if err == nil {
+				usdt := 0.0
+				btc := 0.0
+				if _, ok := balanceMap["usdt"]; ok {
+					usdt = balanceMap["usdt"]
+				}
+				if _, ok := balanceMap["btc"]; ok {
+					btc = balanceMap["btc"]
+				}
+				huobiBalance += btc * (1 / rmbRate) * prices[0]
+				huobiBalance += usdt * (1 / rmbRate)
+			}
+		}
+	}
+
+	priceText += "\n" + fmt.Sprintf("%f", huobiBalance)
+
 	c.String(200, priceText)
 	//response.ServerSucc(c, "success", prices)
 }
@@ -47,6 +71,7 @@ func PriceList(c *gin.Context) {
 	isNeedRequest := false
 	if conf.Config.Redis.IsUse {
 		cacheData, err := redis.GoRedisClient.Get(consts.COINCAP_ASSETS_KEY).Result()
+		// It returns redis.Nil error when key does not exist.
 		if err == goRedis.Nil {
 			isNeedRequest = true
 		} else {
