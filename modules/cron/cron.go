@@ -44,7 +44,7 @@ func getAssetHistoryCron() {
 	_ = c.AddFunc("@every 1m", func() {
 		logger.Info("get coincap asset history begin")
 		now := util.GetMillUnixTime()
-		priceResults, err := asset.GetPrices(conf.Config.History.CoinCapID, conf.Config.History.Interval, now-60*1000, now)
+		priceResults, err := asset.GetPrices(conf.Config.History.CoinCapID, conf.Config.History.Interval, now-2*60*1000, now-60*1000)
 		if err != nil {
 			logger.Error("get price result err: ", err)
 		}
