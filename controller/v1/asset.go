@@ -60,7 +60,7 @@ func PriceExcel(c *gin.Context) {
 		}
 	}
 
-	priceText += "\n" + fmt.Sprintf("%f", huobiBalance)
+	priceText += "\n" + "\n" + fmt.Sprintf("%f", huobiBalance)
 
 	c.String(200, priceText)
 	//response.ServerSucc(c, "success", prices)
