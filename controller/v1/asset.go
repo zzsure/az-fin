@@ -18,8 +18,9 @@ import (
 )
 
 func PriceExcel(c *gin.Context) {
-	coinCapIDs := [10]string{"bitcoin", "ethereum", "ripple", "bitcoin-cash", "litecoin", "binance-coin", "eos", "bitcoin-sv", "monero", "huobi-token"}
-	prices := [10]float64{}
+	const NUM = 13
+	coinCapIDs := [NUM]string{"bitcoin", "ethereum", "ripple", "bitcoin-cash", "litecoin", "binance-coin", "eos", "bitcoin-sv", "monero", "huobi-token", "ethereum-classic", "dash", "zcash"}
+	prices := [NUM]float64{}
 	var err error
 	for idx, id := range coinCapIDs {
 		prices[idx], err = getCoinCapPrice(id)
