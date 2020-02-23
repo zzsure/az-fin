@@ -19,3 +19,9 @@ func (p *Price) Save() error {
 func BashInsertPrice(prices []*Price) error {
 	return nil
 }
+
+func GetPricesByMillTime(id string, mt int64) (*Price, error) {
+	var p Price
+	err := db.DB.Where("coin_cap_id = ? and mill_unix_time = ?", id, mt).Find(&p).Error
+	return &p, err
+}

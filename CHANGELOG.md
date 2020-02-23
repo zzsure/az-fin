@@ -1,5 +1,8 @@
 # az-fin
 
+## 1.1.0 2020-02-23
+- 获取各种币t1-t2历史上x点开仓，y点平仓，上下浮动分别的次数，go run main.go contract --conf run/config.toml
+
 ## 1.0.1 2020-01-23
 - price/excel 增加火币子账号余额
 

@@ -43,6 +43,11 @@ func GetFormatTime(t time.Time) string {
 	return t.In(loc).Format("2006-01-02 15:04:05")
 }
 
+func GetDateByTime(t time.Time) string {
+	loc, _ := time.LoadLocation("Asia/Shanghai")
+	return t.In(loc).Format("20060102")
+}
+
 func GetUnixTime() int64 {
 	return time.Now().Unix()
 }
@@ -53,4 +58,9 @@ func GetMillUnixTime() int64 {
 
 func BytesToInt64(buf []byte) int64 {
 	return int64(binary.BigEndian.Uint64(buf))
+}
+
+func GetMorningUnixTime(t time.Time) int64 {
+	loc, _ := time.LoadLocation("Asia/Shanghai")
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc).Unix()
 }

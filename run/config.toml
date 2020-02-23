@@ -35,3 +35,10 @@ Interval = "m1"
 StartMillTime = 1577808000000
 EndMillTime = 1577980800000
 MaxSleepSecond = 20
+
+[Contract]
+CoinCapID = "bitcoin"
+StartMillTime = 1546272000000
+EndMillTime = 1547049600000
+BuyHour = 9
+SaleHour = 21
