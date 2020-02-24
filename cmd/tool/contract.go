@@ -51,6 +51,7 @@ func runContract(c *cli.Context) {
 	for ; st < conf.Config.Contract.EndMillTime; st += 24 * 60 * 60 * 1000 {
 		t = util.GetTimeByMillUnixTime(st)
 		date := util.GetDateByTime(t)
+		logger.Info("deal date: ", date)
 
 		sp, err := models.GetPricesByMillTime(conf.Config.Contract.CoinCapID, st)
 		if err != nil {
@@ -84,6 +85,8 @@ func runContract(c *cli.Context) {
 		rate := 0.0
 		if sp.PriceUsd != 0.0 {
 			rate = ep.PriceUsd/sp.PriceUsd - 1.0
+		} else {
+			continue
 		}
 		contract := &models.Contract{
 			Date:         date,
@@ -91,8 +94,11 @@ func runContract(c *cli.Context) {
 			BuyHour:      conf.Config.Contract.BuyHour,
 			MaxSaleHour:  conf.Config.Contract.MaxSaleHour,
 			MaxRate:      conf.Config.Contract.MaxRate,
+			BuyMillTime:  st,
 			SaleMillTime: smt,
 			Rate:         rate,
+			BuyUsd:       sp.PriceUsd,
+			SaleUsd:      ep.PriceUsd,
 		}
 		err = contract.Save()
 		if err != nil {
