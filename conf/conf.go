@@ -54,11 +54,12 @@ type ConfigTOML struct {
 	}
 
 	Contract struct {
-		CoinCapID     string `required:"true" flagUsage:"分析的币种"`
-		StartMillTime int64  `required:"true" flagUsage:"分析数据的开始时间，毫秒"`
-		EndMillTime   int64  `required:"true" flagUsage:"分析数据的结束时间，毫秒"`
-		BuyHour       int    `required:"true" flagUsage:"当天买入时间，1-23"`
-		SaleHour      int    `required:"true" flagUsage:"当天卖出时间，2-24"`
+		CoinCapID     string  `required:"true" flagUsage:"分析的币种"`
+		StartMillTime int64   `required:"true" flagUsage:"分析数据的开始时间，毫秒"`
+		EndMillTime   int64   `required:"true" flagUsage:"分析数据的结束时间，毫秒"`
+		BuyHour       int     `required:"true" flagUsage:"当天买入时间，1-23"`
+		MaxSaleHour   int     `required:"true" flagUsage:"当天最晚卖出时间，2-24"`
+		MaxRate       float64 `required:"true" flagUsage:"最大幅度，0.02"`
 	}
 }
 
