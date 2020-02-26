@@ -50,7 +50,7 @@ func runHistory(c *cli.Context) {
 		err = asset.DealPrices(priceResults)
 		if err != nil {
 			logger.Error("save price err: ", err)
-			break
+			continue
 		}
 		util.RandomSleep(conf.Config.History.MaxSleepSecond)
 	}

@@ -15,7 +15,7 @@ var logger = logging.MustGetLogger("modules/cron")
 func Init() {
 	c = cron.New()
 	getAssetsCron()
-	getAssetHistoryCron()
+	//getAssetHistoryCron()
 	c.Start()
 }
 

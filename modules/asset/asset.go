@@ -71,7 +71,6 @@ func GetPrices(coinCapID, interval string, start, end int64) (response.PriceResu
 	url := fmt.Sprintf("%s/%s/%s/history?interval=%s&start=%d&end=%d", strings.TrimRight(consts.COINCAP_URL, "/"), strings.TrimLeft(consts.ASSETS_URI, "/"), coinCapID, interval, start, end)
 	logger.Info("get url: ", url)
 	b, err := http.Get(url, nil)
-	logger.Info("get price: ", string(b))
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +79,7 @@ func GetPrices(coinCapID, interval string, start, end int64) (response.PriceResu
 	if err := json.Unmarshal(data, &priceResults); err != nil {
 		return nil, err
 	}
+	logger.Info("get price len: ", len(priceResults))
 	return priceResults, nil
 }
 
