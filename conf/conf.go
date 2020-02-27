@@ -47,6 +47,7 @@ type ConfigTOML struct {
 
 	History struct {
 		CoinCapID      string `required:"true" flagUsage:"获取的币种"`
+		Symbol         string `required:"true" flagUsage:"获取的币种符号"`
 		Interval       string `required:"true" flagUsage:"获取的币种的间隔，m1, m5, m15, m30, h1, h2, h6, h12, d1"`
 		StartMillTime  int64  `required:"true" flagUsage:"获取数据的开始时间，毫秒"`
 		EndMillTime    int64  `required:"true" flagUsage:"获取数据的结束时间，毫秒"`
@@ -60,6 +61,18 @@ type ConfigTOML struct {
 		BuyHour       int     `required:"true" flagUsage:"当天买入时间，1-23"`
 		MaxSaleHour   int     `required:"true" flagUsage:"当天最晚卖出时间，2-24"`
 		MaxRate       float64 `required:"true" flagUsage:"最大幅度，0.02"`
+	}
+
+	Analyze struct {
+		Symbol          string  `required:"true" flagUsage:"分析的币种，如BTC"`
+		StartMillTime   int64   `required:"true" flagUsage:"分析数据的开始时间，毫秒"`
+		EndMillTime     int64   `required:"true" flagUsage:"分析数据的结束时间，毫秒"`
+		BuyHour         int     `required:"true" flagUsage:"当天买入时间，1-23"`
+		MaxSaleHour     int     `required:"true" flagUsage:"当天最晚卖出时间，2-24"`
+		MaxRate         float64 `required:"true" flagUsage:"最大幅度，0.02"`
+		BuyFeeRate      float64 `required:"true" flagUsage:"买入的费率"`
+		SaleFeeRate     float64 `required:"true" flagUsage:"卖出的费率"`
+		InitContractNum int     `required:"true" flagUsage:"初始合约张数"`
 	}
 }
 

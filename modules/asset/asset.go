@@ -92,6 +92,7 @@ func DealPrices(priceResults response.PriceResults) error {
 		s, _ := strconv.ParseFloat(priceResult.CirculatingSupply, 64)
 		price := &models.Price{
 			CoinCapID:         conf.Config.History.CoinCapID,
+			Symbol:            conf.Config.History.Symbol,
 			Interval:          conf.Config.History.Interval,
 			PriceUsd:          p,
 			MillUnixTime:      priceResult.Time,

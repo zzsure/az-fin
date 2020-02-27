@@ -15,6 +15,7 @@ func main() {
 		tool.InitDB,
 		tool.History,
 		tool.Contract,
+		tool.Analyze,
 	}
 	err := app.Run(os.Args)
 	if err != nil {

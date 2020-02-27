@@ -53,20 +53,20 @@ func runContract(c *cli.Context) {
 		date := util.GetDateByTime(t)
 		logger.Info("deal date: ", date)
 
-		sp, err := models.GetPricesByMillTime(conf.Config.Contract.CoinCapID, st)
+		sp, err := models.GetPriceByMillTime(conf.Config.Contract.CoinCapID, st)
 		if err != nil {
 			continue
 		}
 
 		et := st + int64(conf.Config.Contract.MaxSaleHour-conf.Config.Contract.BuyHour)*60*60*1000
-		ep, err := models.GetPricesByMillTime(conf.Config.Contract.CoinCapID, et)
+		ep, err := models.GetPriceByMillTime(conf.Config.Contract.CoinCapID, et)
 		if err != nil {
 			continue
 		}
 		smt := et
 
 		for it := st; it <= et; it += 60 * 1000 {
-			cp, err := models.GetPricesByMillTime(conf.Config.Contract.CoinCapID, it)
+			cp, err := models.GetPriceByMillTime(conf.Config.Contract.CoinCapID, it)
 			if err != nil {
 				continue
 			}

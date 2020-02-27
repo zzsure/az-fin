@@ -31,6 +31,7 @@ Type = "raw"
 
 [History]
 CoinCapID = "bitcoin"
+Symbol = "BTC"
 Interval = "m1"
 StartMillTime = 1577808000000
 EndMillTime = 1577980800000
@@ -43,3 +44,14 @@ EndMillTime = 1577808000000
 BuyHour = 9
 MaxSaleHour = 21
 MaxRate = 0.02
+
+[Analyze]
+Symbol = "BTC"
+StartMillTime = 1546272000000
+EndMillTime = 1577808000000
+BuyHour = 9
+MaxSaleHour = 21
+MaxRate = 0.02
+BuyFeeRate = 0.0003
+SaleFeeRate = 0.0003
+InitContractNum = 20
