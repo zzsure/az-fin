@@ -32,3 +32,9 @@ func GetLastContractOrder(symbol string) (*ContractOrder, error) {
 	err := db.DB.Order("buy_mill_time desc").Where("symbol = ?", symbol).Last(&co).Error
 	return &co, err
 }
+
+func GetAllContractOrders(symbol string) ([]*ContractOrder, error) {
+	var cos []*ContractOrder
+	err := db.DB.Order("buy_mill_time asc").Where("symbol = ?", symbol).Find(&cos).Error
+	return cos, err
+}
