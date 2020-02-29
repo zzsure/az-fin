@@ -1,7 +1,9 @@
 package tool
 
 import (
+	"az-fin/cmd"
 	"az-fin/conf"
+	"az-fin/consts"
 	"az-fin/library/db"
 	"az-fin/library/log"
 	"az-fin/library/util"
@@ -16,16 +18,9 @@ var Analyze = cli.Command{
 	Name:  "analyze",
 	Usage: "az-fin analyze data",
 	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "conf, c",
-			Value: "config.toml",
-			Usage: "toml配置文件",
-		},
-		cli.StringFlag{
-			Name:  "args",
-			Value: "",
-			Usage: "multi config cmd line args",
-		},
+		cmd.StringFlag("conf, c", "config.toml", "toml配置文件"),
+		cmd.StringFlag("args, a", "", "cmd line args"),
+		cmd.IntFlag("type", 0, "api type"),
 	},
 	Action: runAnalyze,
 }
@@ -35,6 +30,40 @@ func runAnalyze(c *cli.Context) {
 	log.Init()
 	db.Init()
 	db.DB.LogMode(conf.Config.Database.LogMode)
+	t := c.Int("type")
+	switch t {
+	case consts.CONTRACT_ORDER_FIX_BUY_HOUR:
+		fixBuyHour()
+	case consts.CONTRACT_ORDER_RANDOM_GAP:
+		randomGap()
+	}
+}
+
+func randomGap() {
+	if conf.Config.Analyze.EndMillTime <= conf.Config.Analyze.StartMillTime {
+		logger.Error("end mill time should greater than start mill time")
+		return
+	}
+	prices, err := models.GetPricesBySymbolAndTime(conf.Config.Analyze.Symbol, conf.Config.Analyze.StartMillTime, conf.Config.Analyze.EndMillTime)
+	if err != nil {
+		logger.Error("get prices " + err.Error())
+		return
+	}
+	logger.Info("get prices len: ", len(prices))
+	priceMap := make(map[int64]*models.Price, len(prices))
+	for _, p := range prices {
+		priceMap[p.MillUnixTime] = p
+	}
+
+	for st := conf.Config.Analyze.StartMillTime; st < conf.Config.Analyze.EndMillTime; st += 60 * 1000 {
+		t := util.GetTimeByMillUnixTime(st)
+		date := util.GetDateByTime(t)
+		logger.Info("deal date: ", date)
+
+	}
+}
+
+func fixBuyHour() {
 	if conf.Config.Analyze.EndMillTime <= conf.Config.Analyze.StartMillTime {
 		logger.Error("end mill time should greater than start mill time")
 		return
@@ -158,4 +187,33 @@ func runAnalyze(c *cli.Context) {
 			logger.Error("save contract order err: ", err)
 		}
 	}
+	printSum()
+}
+
+func printSum() {
+	cos, err := models.GetAllContractOrders(conf.Config.Analyze.Symbol)
+	if err != nil {
+		logger.Error("get contracts err: ", err)
+	}
+	sumBuyUsd := 0.0
+	endBalance := 0.0
+	sumProfit := 0.0
+	maxDepth := 1
+	sumFee := 0.0
+	maxCoinAmount := 0.0
+	for k, v := range cos {
+		sumBuyUsd += v.BuyUsd
+		sumProfit += v.Profit
+		if k == len(cos)-1 {
+			endBalance = v.EndBalance
+		}
+		if v.Depth > maxDepth {
+			maxDepth = v.Depth
+		}
+		sumFee += v.Fee
+		if v.CoinAmount > maxCoinAmount {
+			maxCoinAmount = v.CoinAmount
+		}
+	}
+	logger.Info("sum buy usd: ", sumBuyUsd, ", end banlance: ", endBalance, ", sum profit: ", sumProfit, ", max depth: ", maxDepth, ", sum fee: ", sumFee, ", max coin amount: ", maxCoinAmount)
 }
