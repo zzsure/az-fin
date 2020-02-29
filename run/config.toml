@@ -47,8 +47,8 @@ MaxRate = 0.02
 
 [Analyze]
 Symbol = "BTC"
-StartMillTime = 1546272000000
-EndMillTime = 1577808000000
+StartMillTime = 1279382400000
+EndMillTime = 1582387200000
 BuyHour = 9
 MaxSaleHour = 21
 MaxRate = 0.02

@@ -10,6 +10,7 @@ import (
 )
 
 // 1: 分析初始合约x张，最大接盘金额，盈利数据
+// 2: 不限制固定时间买入和固定时间卖出，随机买入后，波动r，平仓后随机买
 
 var Analyze = cli.Command{
 	Name:  "analyze",
@@ -88,7 +89,14 @@ func runAnalyze(c *cli.Context) {
 
 		co, err := models.GetLastContractOrder(conf.Config.Analyze.Symbol)
 		if err == nil {
-			// 上次交易亏损
+			// 同batch_id交易亏损
+			//batchProfit := 0.0
+			//cos, err := models.GetContractOrdersByBatchID(conf.Config.Analyze.Symbol, co.BatchID)
+			//if err == nil {
+			//	for _, bco := range cos {
+			//		batchProfit += bco.Profit
+			//	}
+			//}
 			if co.Profit < 0.0 {
 				contractNum = 2 * co.ContractNum
 				batchID = co.BatchID
