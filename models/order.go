@@ -4,8 +4,8 @@ import "az-fin/library/db"
 
 type ContractOrder struct {
 	Model
-	Date         string  `gorm:"type:varchar(10);unique_index:uidx_date_coin_hour;comment:'date'" json:"date"`
-	Symbol       string  `gorm:"type:varchar(255);unique_index:uidx_date_coin_hour;comment:'symbol'" json:"symbol"`
+	Date         string  `gorm:"type:varchar(10);comment:'date'" json:"date"`
+	Symbol       string  `gorm:"type:varchar(255);comment:'symbol'" json:"symbol"`
 	BatchID      int     `gorm:"comment:'batch id'" json:"batch_id"`
 	Depth        int     `gorm:"comment:'depth'" json:"depth"`
 	StartBalance float64 `gorm:"comment:'start coin balance'" json:"start_balance"`
@@ -21,6 +21,8 @@ type ContractOrder struct {
 	Rate         float64 `gorm:"comment:'float base on buy hour'" json:"rate"`
 	Fee          float64 `gorm:"comment:'coin fee'" json:"fee"`
 	Profit       float64 `gorm:"comment:'coin profit'" json:"profit"`
+	Status       int     `gorm:"comment:'order status, 1: buy, 2: sale'" json:"status"`
+	RandomHour   int     `gorm:"comment:'random hour'" json:"random_hour"`
 }
 
 func (co *ContractOrder) Save() error {

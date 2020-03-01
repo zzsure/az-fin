@@ -9,6 +9,8 @@ import (
 	"az-fin/library/util"
 	"az-fin/models"
 	"github.com/urfave/cli"
+	"math/rand"
+	"strconv"
 )
 
 // 1: 分析初始合约x张，最大接盘金额，盈利数据
@@ -44,10 +46,51 @@ func randomGap() {
 		logger.Error("end mill time should greater than start mill time")
 		return
 	}
-	prices, err := models.GetPricesBySymbolAndTime(conf.Config.Analyze.Symbol, conf.Config.Analyze.StartMillTime, conf.Config.Analyze.EndMillTime)
+	startTimeArr := [4]int64{1483200000000, 1514736000000, 1546272000000, 1512057600000}
+	endTimeArr := [4]int64{1514736000000, 1546272000000, 1577808000000, 1577808000000}
+	symbolArr := [9]string{"BTC", "ETH", "XRP", "BCH", "LTC", "EOS", "BSV", "ETC", "TRX"}
+
+	for i := 0; i < 9; i++ {
+		for j := 0; j < 4; j++ {
+			cos := randomBuy(startTimeArr[j], endTimeArr[j], symbolArr[i])
+			logger.Info("start_time: ", startTimeArr[i], ", end_time: ", endTimeArr[i], ", symbol: ", symbolArr[j], ", contract_num: ", conf.Config.Analyze.InitContractNum)
+			printProfitCos(cos)
+		}
+		break
+	}
+	str := "123"
+	strconv.Atoi(str)
+}
+
+func printProfitCos(cos []*models.ContractOrder) {
+	sumUsd := 0.0
+	endBalance := 0.0
+	profit := 0.0
+	maxDepth := 1
+	sumFee := 0.0
+	maxContractAmount := 0.0
+	for _, co := range cos {
+		if co.Status == 2 {
+			sumUsd += co.BuyUsd
+			endBalance = co.EndBalance
+			profit += co.Profit
+			if co.Depth > maxDepth {
+				maxDepth = co.Depth
+			}
+			sumFee += co.Fee
+			if co.CoinAmount > maxContractAmount {
+				maxContractAmount = co.CoinAmount
+			}
+		}
+	}
+	logger.Info("sum_usd: ", sumUsd, ", end_balance: ", endBalance, ", profit: ", profit, ", max_depth: ", maxDepth, ", sum_fee: ", sumFee)
+}
+
+func randomBuy(startTime, endTime int64, symbol string) []*models.ContractOrder {
+	prices, err := models.GetPricesBySymbolAndTime(symbol, startTime, endTime)
 	if err != nil {
 		logger.Error("get prices " + err.Error())
-		return
+		return nil
 	}
 	logger.Info("get prices len: ", len(prices))
 	priceMap := make(map[int64]*models.Price, len(prices))
@@ -55,12 +98,94 @@ func randomGap() {
 		priceMap[p.MillUnixTime] = p
 	}
 
-	for st := conf.Config.Analyze.StartMillTime; st < conf.Config.Analyze.EndMillTime; st += 60 * 1000 {
+	var cos []*models.ContractOrder
+	for st := startTime; st < endTime; st += 60 * 1000 {
 		t := util.GetTimeByMillUnixTime(st)
 		date := util.GetDateByTime(t)
-		logger.Info("deal date: ", date)
 
+		sp, ok := priceMap[st]
+		if !ok {
+			//logger.Error("not have price: ", st)
+			continue
+		}
+
+		buyUsd := 0.0
+		if len(cos) == 0 {
+			buyUsd = 10.0 * float64(conf.Config.Analyze.InitContractNum/20)
+			co := buyOrder(date, 1, 1, conf.Config.Analyze.InitContractNum, 0.0, buyUsd, sp)
+			cos = append(cos, co)
+		} else {
+			lastCo := cos[len(cos)-1]
+			// 如果处于买的状态，需要判断是否卖
+			if lastCo.Status == 1 {
+				if sp.PriceUsd >= (1+conf.Config.Analyze.MaxRate)*lastCo.BuyPrice {
+					saleOrder(lastCo, sp)
+				} else if sp.PriceUsd <= (1-conf.Config.Analyze.MaxRate)*lastCo.BuyPrice {
+					saleOrder(lastCo, sp)
+				}
+			} else if lastCo.Status == 2 && (sp.MillUnixTime-int64(24*60*60*1000)) > lastCo.SaleMillTime {
+				// 过了随机时间后买入
+				contractNum := conf.Config.Analyze.InitContractNum
+				batchID := lastCo.BatchID
+				depth := 1
+				if lastCo.Profit < 0 {
+					contractNum = 2 * lastCo.ContractNum
+					depth = lastCo.Depth + 1
+				} else {
+					batchID++
+				}
+				contractUsd := 10.0 * float64(contractNum/20)
+				lastBalance := lastCo.EndBalance
+				if lastBalance*sp.PriceUsd < contractUsd {
+					buyUsd = contractUsd - lastBalance*sp.PriceUsd
+				}
+				co := buyOrder(date, batchID, depth, contractNum, lastBalance, buyUsd, sp)
+				cos = append(cos, co)
+			}
+		}
 	}
+	return cos
+}
+
+func saleOrder(co *models.ContractOrder, price *models.Price) {
+	co.SalePrice = price.PriceUsd
+	co.Status = 2
+	co.SaleMillTime = price.MillUnixTime
+	co.Rate = (price.PriceUsd - co.BuyPrice) / co.BuyPrice
+
+	contractUsd := 10.0 * float64(co.ContractNum/20)
+	co.Fee = 20*conf.Config.Analyze.BuyFeeRate*contractUsd/co.BuyPrice + 20*conf.Config.Analyze.SaleFeeRate*contractUsd/price.PriceUsd
+	co.Profit = 20*(contractUsd/co.BuyPrice-contractUsd/price.PriceUsd) - co.Fee
+	buyAmount := co.BuyUsd / co.BuyPrice
+	co.EndBalance = co.StartBalance + buyAmount + co.Profit
+	co.RandomHour = 1 + rand.Intn(conf.Config.Analyze.MaxRandomHour)
+	//_ = co.Save()
+}
+
+func buyOrder(date string, batchID, depth, contractNum int, lastBalance, buyUsd float64, price *models.Price) *models.ContractOrder {
+	contractUsd := 10.0 * float64(contractNum/20)
+	coinAmount := contractUsd / price.PriceUsd
+	nco := &models.ContractOrder{
+		Date:         date,
+		Symbol:       price.Symbol,
+		BatchID:      batchID,
+		Depth:        depth,
+		StartBalance: lastBalance,
+		EndBalance:   0.0,
+		CoinAmount:   coinAmount,
+		ContractNum:  contractNum,
+		BuyPrice:     price.PriceUsd,
+		SalePrice:    0.0,
+		BuyUsd:       buyUsd,
+		BuyMillTime:  price.MillUnixTime,
+		SaleMillTime: 0.0,
+		MaxRate:      conf.Config.Analyze.MaxRate,
+		Rate:         0.0,
+		Fee:          0.0,
+		Profit:       0.0,
+		Status:       1,
+	}
+	return nco
 }
 
 func fixBuyHour() {

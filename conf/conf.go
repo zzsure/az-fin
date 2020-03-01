@@ -73,6 +73,7 @@ type ConfigTOML struct {
 		BuyFeeRate      float64 `required:"true" flagUsage:"买入的费率"`
 		SaleFeeRate     float64 `required:"true" flagUsage:"卖出的费率"`
 		InitContractNum int     `required:"true" flagUsage:"初始合约张数"`
+		MaxRandomHour   int     `required:"true" flagUsage:"卖出后最大等待小时"`
 	}
 }
 
