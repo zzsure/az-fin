@@ -38,6 +38,12 @@ func GetTimeByMillUnixTime(t int64) time.Time {
 	return time.Unix(t, 0)
 }
 
+func GetMillTimeByDate(date string) (int64, error) {
+	loc, _ := time.LoadLocation("Asia/Shanghai")
+	t, err := time.ParseInLocation("2006-01-02", date, loc)
+	return t.Unix() * 1000, err
+}
+
 func GetFormatTime(t time.Time) string {
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	return t.In(loc).Format("2006-01-02 15:04:05")

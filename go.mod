@@ -3,6 +3,7 @@ module az-fin
 go 1.13
 
 require (
+	github.com/360EntSecGroup-Skylar/excelize v1.4.1
 	github.com/buger/jsonparser v0.0.0-20191204142016-1a29609e0929
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
