@@ -10,7 +10,6 @@ import (
 	"az-fin/models"
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/urfave/cli"
-	"math"
 	"math/rand"
 	"strconv"
 )
@@ -18,8 +17,7 @@ import (
 var f *excelize.File
 
 // 1: 分析初始合约x张，最大接盘金额，盈利数据
-// 2: 不限制固定时间买入和固定时间卖出，随机买入后，波动r，平仓后随机买
-// 3：买入最大深度后，从头
+// 2: 空头，不限制固定时间买入和固定时间卖出，随机买入后，波动r，平仓后随机买，设置最大深度
 
 var Analyze = cli.Command{
 	Name:  "analyze",
@@ -80,27 +78,27 @@ func runAnalyze(c *cli.Context) {
 			priceMap[p.MillUnixTime] = p
 		}
 		for j := 0; j < 4; j++ {
-			startTime, err := util.GetMillTimeByDate(startTimeArr[0])
+			startTime, err := util.GetMillTimeByDate(startTimeArr[j])
 			if err != nil {
 				logger.Error("get mill time err: " + err.Error())
 				continue
 			}
-			endTime, err := util.GetMillTimeByDate(endTimeArr[0])
+			endTime, err := util.GetMillTimeByDate(endTimeArr[j])
 			if err != nil {
 				logger.Error("get mill time err: " + err.Error())
 				continue
 			}
 			var cos []*models.ContractOrder
 			switch t {
-			case consts.CONTRACT_ORDER_FIX_BUY_HOUR:
+			case consts.CONTRACT_BEAR_ORDER_FIX_BUY_HOUR:
 				fixBuyHour()
-			case consts.CONTRACT_ORDER_RANDOM_GAP:
-				cos = randomBuy(priceMap, startTime, endTime, math.MaxInt32)
-			case consts.CONTRACT_ORDER_MAX_DEPTH:
-				cos = maxDepthBuy(priceMap, startTime, endTime)
+			case consts.CONTRACT_BEAR_ORDER_MAX_DEPTH:
+				for hour := 1; hour <= conf.Config.Analyze.MaxRandomHour; hour++ {
+					k++
+					cos = bearOrderMaxDepth(priceMap, startTime, endTime, hour)
+					printProfitCosToExcel(k, hour, symbolArr[i], startTimeArr[j], endTimeArr[j], cos)
+				}
 			}
-			k++
-			printProfitCosToExcel(symbolArr[i], startTimeArr[j], endTimeArr[j], k, cos)
 		}
 		break
 	}
@@ -109,17 +107,12 @@ func runAnalyze(c *cli.Context) {
 	}
 }
 
-func maxDepthBuy(priceMap map[int64]*models.Price, startTime, endTime int64) []*models.ContractOrder {
-	return randomBuy(priceMap, startTime, endTime, conf.Config.Analyze.MaxDepth)
-}
-
-func randomBuy(priceMap map[int64]*models.Price, startTime, endTime int64, maxDepth int) []*models.ContractOrder {
+func bearOrderMaxDepth(priceMap map[int64]*models.Price, startTime, endTime int64, hour int) []*models.ContractOrder {
 	logger.Info("start_time: ", startTime, ", end_time:", endTime)
 	var cos []*models.ContractOrder
 	for st := startTime; st < endTime; st += 60 * 1000 {
 		t := util.GetTimeByMillUnixTime(st)
 		date := util.GetDateByTime(t)
-		hour := conf.Config.Analyze.MinRandomHour + rand.Intn(conf.Config.Analyze.MaxRandomHour)
 
 		sp, ok := priceMap[st]
 		if !ok {
@@ -146,7 +139,7 @@ func randomBuy(priceMap map[int64]*models.Price, startTime, endTime int64, maxDe
 				contractNum := conf.Config.Analyze.InitContractNum
 				batchID := lastCo.BatchID
 				depth := 1
-				if lastCo.Profit < 0 && lastCo.Depth < maxDepth {
+				if lastCo.Profit < 0 && lastCo.Depth < conf.Config.Analyze.MaxDepth {
 					contractNum = 2 * lastCo.ContractNum
 					depth = lastCo.Depth + 1
 				} else {
@@ -351,7 +344,7 @@ func printSum() {
 	logger.Info("sum buy usd: ", sumBuyUsd, ", end banlance: ", endBalance, ", sum profit: ", sumProfit, ", max depth: ", maxDepth, ", sum fee: ", sumFee, ", max coin amount: ", maxCoinAmount)
 }
 
-func printProfitCosToExcel(symbol, sd, ed string, k int, cos []*models.ContractOrder) {
+func printProfitCosToExcel(k, hour int, symbol, sd, ed string, cos []*models.ContractOrder) {
 	sumUsd := 0.0
 	endBalance := 0.0
 	profit := 0.0
@@ -374,5 +367,5 @@ func printProfitCosToExcel(symbol, sd, ed string, k int, cos []*models.ContractO
 	}
 	logger.Info("symbol: ", symbol, ", sd: ", sd, ", ed: ", ed, ", sum_usd: ", sumUsd, ", end_balance: ", endBalance, ", profit: ", profit, ", max_depth: ", maxDepth, ", sum_fee: ", sumFee)
 	axis := "A" + strconv.Itoa(k)
-	f.SetSheetRow("Sheet1", axis, &[]interface{}{symbol, sd, ed, sumUsd, endBalance, profit, maxDepth, sumFee})
+	f.SetSheetRow("Sheet1", axis, &[]interface{}{symbol, sd, ed, hour, sumUsd, endBalance, profit, maxDepth, sumFee})
 }
