@@ -58,7 +58,7 @@ func runAnalyze(c *cli.Context) {
 
 	f = excelize.NewFile()
 	k := 0
-	for i := 8; i < 9; i++ {
+	for i := 0; i < 9; i++ {
 		st, err := util.GetMillTimeByDate(startTimeArr[0])
 		if err != nil {
 			logger.Error("get mill date err: ", err)
@@ -80,13 +80,12 @@ func runAnalyze(c *cli.Context) {
 			priceMap[p.MillUnixTime] = p
 		}
 		for j := 0; j < 4; j++ {
-			hour := conf.Config.Analyze.MinRandomHour + rand.Intn(conf.Config.Analyze.MaxRandomHour)
 			startTime, err := util.GetMillTimeByDate(startTimeArr[0])
 			if err != nil {
 				logger.Error("get mill time err: " + err.Error())
 				continue
 			}
-			endTime, err := util.GetMillTimeByDate(startTimeArr[0])
+			endTime, err := util.GetMillTimeByDate(endTimeArr[0])
 			if err != nil {
 				logger.Error("get mill time err: " + err.Error())
 				continue
@@ -96,12 +95,12 @@ func runAnalyze(c *cli.Context) {
 			case consts.CONTRACT_ORDER_FIX_BUY_HOUR:
 				fixBuyHour()
 			case consts.CONTRACT_ORDER_RANDOM_GAP:
-				cos = randomBuy(priceMap, startTime, endTime, hour, math.MaxInt32)
+				cos = randomBuy(priceMap, startTime, endTime, math.MaxInt32)
 			case consts.CONTRACT_ORDER_MAX_DEPTH:
-				maxDepthBuy(priceMap, startTime, endTime, hour)
+				cos = maxDepthBuy(priceMap, startTime, endTime)
 			}
 			k++
-			printProfitCosToExcel(symbolArr[i], startTimeArr[j], endTimeArr[j], k, hour, cos)
+			printProfitCosToExcel(symbolArr[i], startTimeArr[j], endTimeArr[j], k, cos)
 		}
 		break
 	}
@@ -110,15 +109,17 @@ func runAnalyze(c *cli.Context) {
 	}
 }
 
-func maxDepthBuy(priceMap map[int64]*models.Price, startTime, endTime int64, hour int) []*models.ContractOrder {
-	return randomBuy(priceMap, startTime, endTime, hour, conf.Config.Analyze.MaxDepth)
+func maxDepthBuy(priceMap map[int64]*models.Price, startTime, endTime int64) []*models.ContractOrder {
+	return randomBuy(priceMap, startTime, endTime, conf.Config.Analyze.MaxDepth)
 }
 
-func randomBuy(priceMap map[int64]*models.Price, startTime, endTime int64, hour, maxDepth int) []*models.ContractOrder {
+func randomBuy(priceMap map[int64]*models.Price, startTime, endTime int64, maxDepth int) []*models.ContractOrder {
+	logger.Info("start_time: ", startTime, ", end_time:", endTime)
 	var cos []*models.ContractOrder
 	for st := startTime; st < endTime; st += 60 * 1000 {
 		t := util.GetTimeByMillUnixTime(st)
 		date := util.GetDateByTime(t)
+		hour := conf.Config.Analyze.MinRandomHour + rand.Intn(conf.Config.Analyze.MaxRandomHour)
 
 		sp, ok := priceMap[st]
 		if !ok {
@@ -145,7 +146,7 @@ func randomBuy(priceMap map[int64]*models.Price, startTime, endTime int64, hour,
 				contractNum := conf.Config.Analyze.InitContractNum
 				batchID := lastCo.BatchID
 				depth := 1
-				if lastCo.Profit < 0 && depth < maxDepth {
+				if lastCo.Profit < 0 && lastCo.Depth < maxDepth {
 					contractNum = 2 * lastCo.ContractNum
 					depth = lastCo.Depth + 1
 				} else {
@@ -350,7 +351,7 @@ func printSum() {
 	logger.Info("sum buy usd: ", sumBuyUsd, ", end banlance: ", endBalance, ", sum profit: ", sumProfit, ", max depth: ", maxDepth, ", sum fee: ", sumFee, ", max coin amount: ", maxCoinAmount)
 }
 
-func printProfitCosToExcel(symbol, sd, ed string, k, hour int, cos []*models.ContractOrder) {
+func printProfitCosToExcel(symbol, sd, ed string, k int, cos []*models.ContractOrder) {
 	sumUsd := 0.0
 	endBalance := 0.0
 	profit := 0.0
@@ -371,7 +372,7 @@ func printProfitCosToExcel(symbol, sd, ed string, k, hour int, cos []*models.Con
 			}
 		}
 	}
-	logger.Info("symbol: ", symbol, ", sd: ", sd, ", ed: ", ed, ", hour: ", hour, "sum_usd: ", sumUsd, ", end_balance: ", endBalance, ", profit: ", profit, ", max_depth: ", maxDepth, ", sum_fee: ", sumFee)
+	logger.Info("symbol: ", symbol, ", sd: ", sd, ", ed: ", ed, ", sum_usd: ", sumUsd, ", end_balance: ", endBalance, ", profit: ", profit, ", max_depth: ", maxDepth, ", sum_fee: ", sumFee)
 	axis := "A" + strconv.Itoa(k)
-	f.SetSheetRow("Sheet1", axis, &[]interface{}{symbol, sd, ed, hour, sumUsd, endBalance, profit, maxDepth, sumFee})
+	f.SetSheetRow("Sheet1", axis, &[]interface{}{symbol, sd, ed, sumUsd, endBalance, profit, maxDepth, sumFee})
 }

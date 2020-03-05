@@ -56,3 +56,5 @@ BuyFeeRate = 0.0003
 SaleFeeRate = 0.0003
 InitContractNum = 20
 MaxRandomHour = 24
+MinRandomHour = 5
+MaxDepth = 10
