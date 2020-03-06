@@ -8,6 +8,7 @@ import (
 	"az-fin/library/log"
 	"az-fin/library/util"
 	"az-fin/models"
+	"errors"
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/urfave/cli"
 	"math/rand"
@@ -25,7 +26,7 @@ var Analyze = cli.Command{
 	Flags: []cli.Flag{
 		cmd.StringFlag("conf, c", "config.toml", "toml配置文件"),
 		cmd.StringFlag("args, a", "", "cmd line args"),
-		cmd.IntFlag("type", 0, "api type"),
+		cmd.IntFlag("type, t", 0, "api type"),
 	},
 	Action: runAnalyze,
 }
@@ -53,6 +54,7 @@ func runAnalyze(c *cli.Context) {
 	}
 
 	t := c.Int("type")
+	logger.Info("type now is: ", t)
 
 	f = excelize.NewFile()
 	k := 0
@@ -92,22 +94,22 @@ func runAnalyze(c *cli.Context) {
 			switch t {
 			case consts.CONTRACT_BEAR_ORDER_FIX_BUY_HOUR:
 				fixBuyHour()
-			case consts.CONTRACT_BEAR_ORDER_MAX_DEPTH:
+			case consts.CONTRACT_BEAR_ORDER_MAX_DEPTH, consts.CONTRACT_MORE_ORDER_MAX_DEPTH:
 				for hour := 1; hour <= conf.Config.Analyze.MaxRandomHour; hour++ {
 					k++
-					cos = bearOrderMaxDepth(priceMap, startTime, endTime, hour)
+					cos = bearOrderMaxDepth(priceMap, startTime, endTime, hour, t)
 					printProfitCosToExcel(k, hour, symbolArr[i], startTimeArr[j], endTimeArr[j], cos)
 				}
 			}
 		}
-		break
+		//break
 	}
 	if err := f.SaveAs(consts.DATA_BASE_DIR + "data.xlsx"); err != nil {
 		logger.Error("err: ", err)
 	}
 }
 
-func bearOrderMaxDepth(priceMap map[int64]*models.Price, startTime, endTime int64, hour int) []*models.ContractOrder {
+func bearOrderMaxDepth(priceMap map[int64]*models.Price, startTime, endTime int64, hour, contractType int) []*models.ContractOrder {
 	logger.Info("start_time: ", startTime, ", end_time:", endTime)
 	var cos []*models.ContractOrder
 	for st := startTime; st < endTime; st += 60 * 1000 {
@@ -128,14 +130,12 @@ func bearOrderMaxDepth(priceMap map[int64]*models.Price, startTime, endTime int6
 		} else {
 			lastCo := cos[len(cos)-1]
 			// 如果处于买的状态，需要判断是否卖
-			if lastCo.Status == 1 {
-				if sp.PriceUsd >= (1+conf.Config.Analyze.MaxRate)*lastCo.BuyPrice {
-					saleOrder(lastCo, sp)
-				} else if sp.PriceUsd <= (1-conf.Config.Analyze.MaxRate)*lastCo.BuyPrice {
-					saleOrder(lastCo, sp)
+			if lastCo.Status == 1 && (sp.PriceUsd >= (1+conf.Config.Analyze.MaxRate)*lastCo.BuyPrice || sp.PriceUsd <= (1-conf.Config.Analyze.MaxRate)*lastCo.BuyPrice) {
+				err := saleOrder(lastCo, sp, contractType)
+				if err != nil {
+					logger.Error("sale err: ", err)
 				}
 			} else if lastCo.Status == 2 && (sp.MillUnixTime-int64(hour*60*60*1000)) > lastCo.SaleMillTime {
-				// 过了随机时间后买入
 				contractNum := conf.Config.Analyze.InitContractNum
 				batchID := lastCo.BatchID
 				depth := 1
@@ -158,7 +158,7 @@ func bearOrderMaxDepth(priceMap map[int64]*models.Price, startTime, endTime int6
 	return cos
 }
 
-func saleOrder(co *models.ContractOrder, price *models.Price) {
+func saleOrder(co *models.ContractOrder, price *models.Price, t int) error {
 	co.SalePrice = price.PriceUsd
 	co.Status = 2
 	co.SaleMillTime = price.MillUnixTime
@@ -166,11 +166,19 @@ func saleOrder(co *models.ContractOrder, price *models.Price) {
 
 	contractUsd := 10.0 * float64(co.ContractNum/20)
 	co.Fee = 20*conf.Config.Analyze.BuyFeeRate*contractUsd/co.BuyPrice + 20*conf.Config.Analyze.SaleFeeRate*contractUsd/price.PriceUsd
-	co.Profit = 20*(contractUsd/co.BuyPrice-contractUsd/price.PriceUsd) - co.Fee
+	if t == consts.CONTRACT_BEAR_ORDER_FIX_BUY_HOUR || t == consts.CONTRACT_BEAR_ORDER_MAX_DEPTH {
+		co.Profit = 20*(contractUsd/co.BuyPrice-contractUsd/price.PriceUsd) - co.Fee
+	} else if t == consts.CONTRACT_MORE_ORDER_MAX_DEPTH {
+		co.Profit = 20*(contractUsd/price.PriceUsd-contractUsd/co.BuyPrice) - co.Fee
+	} else {
+		return errors.New("type is wrong")
+	}
+
 	buyAmount := co.BuyUsd / co.BuyPrice
 	co.EndBalance = co.StartBalance + buyAmount + co.Profit
 	co.RandomHour = 1 + rand.Intn(conf.Config.Analyze.MaxRandomHour)
 	//_ = co.Save()
+	return nil
 }
 
 func buyOrder(date string, batchID, depth, contractNum int, lastBalance, buyUsd float64, price *models.Price) *models.ContractOrder {
