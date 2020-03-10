@@ -19,6 +19,8 @@ var f *excelize.File
 
 // 1: 分析初始合约x张，最大接盘金额，盈利数据
 // 2: 空头，不限制固定时间买入和固定时间卖出，随机买入后，波动r，平仓后随机买，设置最大深度
+// 3：多头，策略与空头一样
+// 4：随机买，每次只开20张合约，根据最大金额/10，得出买入次数，根据数据库条数除以次数得出随机范围
 
 var Analyze = cli.Command{
 	Name:  "analyze",
@@ -100,6 +102,8 @@ func runAnalyze(c *cli.Context) {
 					cos = bearOrderMaxDepth(priceMap, startTime, endTime, hour, t)
 					printProfitCosToExcel(k, hour, symbolArr[i], startTimeArr[j], endTimeArr[j], cos)
 				}
+			case consts.CONTRACT_RANDOM_BUY:
+				randomBuy()
 			}
 		}
 		//break
@@ -107,6 +111,10 @@ func runAnalyze(c *cli.Context) {
 	if err := f.SaveAs(consts.DATA_BASE_DIR + "data.xlsx"); err != nil {
 		logger.Error("err: ", err)
 	}
+}
+
+func randomBuy() {
+	// 根据最大金额，
 }
 
 func bearOrderMaxDepth(priceMap map[int64]*models.Price, startTime, endTime int64, hour, contractType int) []*models.ContractOrder {
@@ -167,9 +175,9 @@ func saleOrder(co *models.ContractOrder, price *models.Price, t int) error {
 	contractUsd := 10.0 * float64(co.ContractNum/20)
 	co.Fee = 20*conf.Config.Analyze.BuyFeeRate*contractUsd/co.BuyPrice + 20*conf.Config.Analyze.SaleFeeRate*contractUsd/price.PriceUsd
 	if t == consts.CONTRACT_BEAR_ORDER_FIX_BUY_HOUR || t == consts.CONTRACT_BEAR_ORDER_MAX_DEPTH {
-		co.Profit = 20*(contractUsd/co.BuyPrice-contractUsd/price.PriceUsd) - co.Fee
-	} else if t == consts.CONTRACT_MORE_ORDER_MAX_DEPTH {
 		co.Profit = 20*(contractUsd/price.PriceUsd-contractUsd/co.BuyPrice) - co.Fee
+	} else if t == consts.CONTRACT_MORE_ORDER_MAX_DEPTH {
+		co.Profit = 20*(contractUsd/co.BuyPrice-contractUsd/price.PriceUsd) - co.Fee
 	} else {
 		return errors.New("type is wrong")
 	}
