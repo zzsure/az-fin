@@ -12,6 +12,8 @@ import (
 
 var logger = logging.MustGetLogger("cmd/tool")
 
+// 根据时间范围获取对应的prices的数据
+
 var History = cli.Command{
 	Name:  "history",
 	Usage: "az-fin history data",
