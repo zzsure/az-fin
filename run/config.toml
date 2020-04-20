@@ -46,9 +46,11 @@ MaxSaleHour = 21
 MaxRate = 0.02
 
 [Analyze]
-Symbol = "BTC"
-StartMillTime = 1279382400000
-EndMillTime = 1582387200000
+Symbols = ["BTC"]
+#StartTimes = ["2017-01-01", "2018-01-01", "2019-01-01", "2017-12-01"]
+#EndTimes = ["2018-01-01", "2019-01-01", "2020-01-01", "2020-01-01"]
+StartTimes = ["2017-01-01"]
+EndTimes = ["2020-01-01"]
 BuyHour = 9
 MaxSaleHour = 21
 MaxRate = 0.02

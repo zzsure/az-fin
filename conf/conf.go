@@ -64,18 +64,18 @@ type ConfigTOML struct {
 	}
 
 	Analyze struct {
-		Symbol          string  `required:"true" flagUsage:"分析的币种，如BTC"`
-		StartMillTime   int64   `required:"true" flagUsage:"分析数据的开始时间，毫秒"`
-		EndMillTime     int64   `required:"true" flagUsage:"分析数据的结束时间，毫秒"`
-		BuyHour         int     `required:"true" flagUsage:"当天买入时间，1-23"`
-		MaxSaleHour     int     `required:"true" flagUsage:"当天最晚卖出时间，2-24"`
-		MaxRate         float64 `required:"true" flagUsage:"最大幅度，0.02"`
-		BuyFeeRate      float64 `required:"true" flagUsage:"买入的费率"`
-		SaleFeeRate     float64 `required:"true" flagUsage:"卖出的费率"`
-		InitContractNum int     `required:"true" flagUsage:"初始合约张数"`
-		MinRandomHour   int     `required:"true" flagUsage:"再次下单最小间隔小时"`
-		MaxRandomHour   int     `required:"true" flagUsage:"卖出后最大等待小时"`
-		MaxDepth        int     `required:"true" flagUsage:"最大深度"`
+		Symbols         []string `required:"true" flagUsage:"分析的币种，如BTC"`
+		StartTimes      []string `required:"true" flagUsage:"分析数据的开始时间，毫秒"`
+		EndTimes        []string `required:"true" flagUsage:"分析数据的结束时间，毫秒"`
+		BuyHour         int      `required:"true" flagUsage:"当天买入时间，1-23"`
+		MaxSaleHour     int      `required:"true" flagUsage:"当天最晚卖出时间，2-24"`
+		MaxRate         float64  `required:"true" flagUsage:"最大幅度，0.02"`
+		BuyFeeRate      float64  `required:"true" flagUsage:"买入的费率"`
+		SaleFeeRate     float64  `required:"true" flagUsage:"卖出的费率"`
+		InitContractNum int      `required:"true" flagUsage:"初始合约张数"`
+		MinRandomHour   int      `required:"true" flagUsage:"再次下单最小间隔小时"`
+		MaxRandomHour   int      `required:"true" flagUsage:"卖出后最大等待小时"`
+		MaxDepth        int      `required:"true" flagUsage:"最大深度"`
 	}
 }
 

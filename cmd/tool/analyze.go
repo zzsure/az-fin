@@ -11,6 +11,7 @@ import (
 	"errors"
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/urfave/cli"
+	"math"
 	"math/rand"
 	"strconv"
 )
@@ -21,7 +22,7 @@ var f *excelize.File
 // 2: 空头，不限制固定时间买入和固定时间卖出，随机买入后，波动r，平仓后随机买，设置最大深度
 // 3：多头，策略与空头一样
 // 4：随机买，每次只开20张合约，根据最大金额/10，得出买入次数，根据数据库条数除以次数得出随机范围
-// 5：分析周一到周日哪天的哪个小时买入是当周的低点的次数最大，用于定投
+// 5：分析周一到周日哪天买平均价格值最小的次数最多
 // 6：分析周一到周日哪个小时买入后浮动f%卖出会最大收益，本金和利润分别是多少
 
 var Analyze = cli.Command{
@@ -41,77 +42,115 @@ func runAnalyze(c *cli.Context) {
 	db.Init()
 	db.DB.LogMode(conf.Config.Database.LogMode)
 
-	//startTimeArr := [4]int64{"1483200000000", 1514736000000, 1546272000000, 1512057600000}
-	//endTimeArr := [4]int64{1514736000000, 1546272000000, 1577808000000, 1577808000000}
-	symbolArr := [9]string{"BTC", "ETH", "XRP", "BCH", "LTC", "EOS", "BSV", "ETC", "TRX"}
-	startTimeArr := [4]string{"2017-01-01", "2018-01-01", "2019-01-01", "2017-12-01"}
-	endTimeArr := [4]string{"2018-01-01", "2019-01-01", "2020-01-01", "2020-01-01"}
+	// TODO: check config.toml params
+	// 限制startTimes[0]最小，endTimes[len(endTimes)-1]最大
 
-	if conf.Config.Analyze.EndMillTime <= conf.Config.Analyze.StartMillTime {
-		logger.Error("end mill time should greater than start mill time")
-		return
-	}
+	analyzeType := c.Int("type")
+	logger.Info("analyze type is: ", analyzeType)
 
-	if conf.Config.Analyze.MaxSaleHour <= conf.Config.Analyze.BuyHour {
-		logger.Error("sale hour should greater than buy hour")
-		return
-	}
-
-	t := c.Int("type")
-	logger.Info("type now is: ", t)
+	symbols := conf.Config.Analyze.Symbols
+	startTimes := conf.Config.Analyze.StartTimes
+	endTimes := conf.Config.Analyze.EndTimes
 
 	f = excelize.NewFile()
 	k := 0
-	for i := 0; i < 9; i++ {
-		st, err := util.GetMillTimeByDate(startTimeArr[0])
+	for i := 0; i < len(symbols); i++ {
+		st, err := util.GetMillTimeByDate(startTimes[0])
 		if err != nil {
 			logger.Error("get mill date err: ", err)
 			continue
 		}
-		et, err := util.GetMillTimeByDate(endTimeArr[3])
+
+		et, err := util.GetMillTimeByDate(endTimes[len(endTimes)-1])
 		if err != nil {
 			logger.Error("get mill date err: ", err)
 			continue
 		}
-		prices, err := models.GetPricesBySymbolAndTime(symbolArr[i], st, et)
+
+		prices, err := models.GetPricesBySymbolAndTime(symbols[i], st, et)
 		if err != nil {
-			logger.Error("get prices " + err.Error())
+			logger.Error("get symbol", symbols[i], " prices "+err.Error())
 			continue
 		}
-		logger.Info("get prices len: ", len(prices))
+		logger.Info("get symbol ", symbols[i], " prices count: ", len(prices))
+
 		priceMap := make(map[int64]*models.Price, len(prices))
 		for _, p := range prices {
 			priceMap[p.MillUnixTime] = p
 		}
-		for j := 0; j < 4; j++ {
-			startTime, err := util.GetMillTimeByDate(startTimeArr[j])
+
+		for j := 0; j < len(startTimes); j++ {
+			startTime, err := util.GetMillTimeByDate(startTimes[j])
 			if err != nil {
-				logger.Error("get mill time err: " + err.Error())
+				logger.Error("get ", startTimes[j], " mill time err: "+err.Error())
 				continue
 			}
-			endTime, err := util.GetMillTimeByDate(endTimeArr[j])
+
+			endTime, err := util.GetMillTimeByDate(endTimes[j])
 			if err != nil {
-				logger.Error("get mill time err: " + err.Error())
+				logger.Error("get ", endTimes[j], " mill time err: "+err.Error())
 				continue
 			}
+
 			var cos []*models.ContractOrder
-			switch t {
-			case consts.CONTRACT_BEAR_ORDER_FIX_BUY_HOUR:
-				fixBuyHour()
-			case consts.CONTRACT_BEAR_ORDER_MAX_DEPTH, consts.CONTRACT_MORE_ORDER_MAX_DEPTH:
+			switch analyzeType {
+			case consts.ANALYZE_BEAR_ORDER_FIX_BUY_HOUR:
+				//fixBuyHour()
+			case consts.ANALYZE_BEAR_ORDER_MAX_DEPTH, consts.ANALYZE_MORE_ORDER_MAX_DEPTH:
 				for hour := 1; hour <= conf.Config.Analyze.MaxRandomHour; hour++ {
 					k++
-					cos = bearOrderMaxDepth(priceMap, startTime, endTime, hour, t)
-					printProfitCosToExcel(k, hour, symbolArr[i], startTimeArr[j], endTimeArr[j], cos)
+					cos = bearOrderMaxDepth(priceMap, startTime, endTime, hour, analyzeType)
+					printProfitCosToExcel(k, hour, symbols[i], startTimes[j], endTimes[j], cos)
 				}
-			case consts.CONTRACT_RANDOM_BUY:
+			case consts.ANALYZE_RANDOM_BUY:
 				randomBuy()
+			case consts.ANALYZE_WEEKLY_LOW_PRICE:
+				// 开始时间从一个周一开始
+				weeklyLowPrice(symbols[i], priceMap, startTime, endTime)
 			}
 		}
 		//break
 	}
 	if err := f.SaveAs(consts.DATA_BASE_DIR + "data.xlsx"); err != nil {
 		logger.Error("err: ", err)
+	}
+}
+
+func weeklyLowPrice(symbol string, priceMap map[int64]*models.Price, startTime, endTime int64) {
+	weekHourMap := make(map[string]int)
+	for st := startTime; st < endTime; st += 7 * 24 * 60 * 60 * 1000 {
+		dayPriceMap := make(map[string]float64)
+		dayCountMap := make(map[string]int)
+		for unixTime := st; unixTime < st+7*24*60*60*1000; unixTime += 60 * 1000 {
+			sp, ok := priceMap[unixTime]
+			if !ok {
+				continue
+			}
+			t := util.GetTimeByMillUnixTime(sp.MillUnixTime)
+			str := t.Weekday().String()
+			dayPriceMap[str] += sp.PriceUsd
+			dayCountMap[str] += 1
+		}
+		minDay := ""
+		minPrice := math.MaxFloat64
+		for k, v := range dayPriceMap {
+			if _, ok := dayCountMap[k]; ok {
+				avgPrice := v / float64(dayCountMap[k])
+				if avgPrice < minPrice {
+					minDay = k
+					minPrice = avgPrice
+				}
+			}
+		}
+		if minDay != "" {
+			weekHourMap[minDay]++
+		}
+	}
+	idx := 0
+	for k, v := range weekHourMap {
+		idx++
+		axis := "A" + strconv.Itoa(idx)
+		f.SetSheetRow("Sheet1", axis, &[]interface{}{symbol, startTime, endTime, k, v})
 	}
 }
 
@@ -176,9 +215,9 @@ func saleOrder(co *models.ContractOrder, price *models.Price, t int) error {
 
 	contractUsd := 10.0 * float64(co.ContractNum/20)
 	co.Fee = 20*conf.Config.Analyze.BuyFeeRate*contractUsd/co.BuyPrice + 20*conf.Config.Analyze.SaleFeeRate*contractUsd/price.PriceUsd
-	if t == consts.CONTRACT_BEAR_ORDER_FIX_BUY_HOUR || t == consts.CONTRACT_BEAR_ORDER_MAX_DEPTH {
+	if t == consts.ANALYZE_BEAR_ORDER_FIX_BUY_HOUR || t == consts.ANALYZE_BEAR_ORDER_MAX_DEPTH {
 		co.Profit = 20*(contractUsd/price.PriceUsd-contractUsd/co.BuyPrice) - co.Fee
-	} else if t == consts.CONTRACT_MORE_ORDER_MAX_DEPTH {
+	} else if t == consts.ANALYZE_MORE_ORDER_MAX_DEPTH {
 		co.Profit = 20*(contractUsd/co.BuyPrice-contractUsd/price.PriceUsd) - co.Fee
 	} else {
 		return errors.New("type is wrong")
@@ -217,150 +256,150 @@ func buyOrder(date string, batchID, depth, contractNum int, lastBalance, buyUsd 
 	return nco
 }
 
-func fixBuyHour() {
-	prices, err := models.GetPricesBySymbolAndTime(conf.Config.Analyze.Symbol, conf.Config.Analyze.StartMillTime, conf.Config.Analyze.EndMillTime)
-	if err != nil {
-		logger.Error("get prices " + err.Error())
-		return
-	}
-	logger.Info("get prices len: ", len(prices))
-	priceMap := make(map[int64]*models.Price, len(prices))
-	for _, p := range prices {
-		priceMap[p.MillUnixTime] = p
-	}
-
-	t := util.GetTimeByMillUnixTime(conf.Config.Analyze.StartMillTime)
-	m := util.GetMorningUnixTime(t)
-	st := (m + int64(conf.Config.Analyze.BuyHour)*60*60) * 1000
-
-	for ; st < conf.Config.Analyze.EndMillTime; st += 24 * 60 * 60 * 1000 {
-		t = util.GetTimeByMillUnixTime(st)
-		date := util.GetDateByTime(t)
-		logger.Info("deal date: ", date)
-
-		sp, ok := priceMap[st]
-		if !ok {
-			logger.Error("not have price: ", st)
-			continue
-		}
-		et := st + int64(conf.Config.Analyze.MaxSaleHour-conf.Config.Analyze.BuyHour)*60*60*1000
-		ep, ok := priceMap[et]
-		if !ok {
-			logger.Error("not have price: ", et)
-			continue
-		}
-		epUsd := ep.PriceUsd
-		smt := et
-
-		contractNum := conf.Config.Analyze.InitContractNum
-		lastBalance := 0.0
-		buyAmount := 0.0
-		buyUsd := 0.0
-		batchID := 1
-		depth := 1
-		fee := 0.0
-
-		co, err := models.GetLastContractOrder(conf.Config.Analyze.Symbol)
-		if err == nil {
-			// 同batch_id交易亏损
-			//batchProfit := 0.0
-			//cos, err := models.GetContractOrdersByBatchID(conf.Config.Analyze.Symbol, co.BatchID)
-			//if err == nil {
-			//	for _, bco := range cos {
-			//		batchProfit += bco.Profit
-			//	}
-			//}
-			if co.Profit < 0.0 {
-				contractNum = 2 * co.ContractNum
-				batchID = co.BatchID
-				depth = co.Depth + 1
-			} else {
-				batchID = co.BatchID + 1
-			}
-			lastBalance = co.EndBalance
-		}
-
-		contractUsd := 10.0 * float64(contractNum/20)
-		coinAmount := contractUsd / sp.PriceUsd
-		if lastBalance*sp.PriceUsd < contractUsd {
-			buyUsd = contractUsd - lastBalance*sp.PriceUsd
-			buyAmount = buyUsd / sp.PriceUsd
-		}
-
-		for it := st; it <= et; it += 60 * 1000 {
-			cp, ok := priceMap[st]
-			if !ok {
-				continue
-			}
-			// 上涨止损
-			if cp.PriceUsd >= (1+conf.Config.Analyze.MaxRate)*sp.PriceUsd {
-				smt = cp.MillUnixTime
-				epUsd = (1 + conf.Config.Analyze.MaxRate) * sp.PriceUsd
-				break
-			} else if cp.PriceUsd <= (1-conf.Config.Analyze.MaxRate)*sp.PriceUsd {
-				smt = cp.MillUnixTime
-				epUsd = (1 - conf.Config.Analyze.MaxRate) * sp.PriceUsd
-				break
-			}
-		}
-		fee = 20*conf.Config.Analyze.BuyFeeRate*contractUsd/sp.PriceUsd + 20*conf.Config.Analyze.SaleFeeRate*contractUsd/epUsd
-		profit := 20*(contractUsd/sp.PriceUsd-contractUsd/epUsd) - fee
-		endBalance := lastBalance + buyAmount + profit
-
-		nco := &models.ContractOrder{
-			Date:         date,
-			Symbol:       conf.Config.Analyze.Symbol,
-			BatchID:      batchID,
-			Depth:        depth,
-			StartBalance: lastBalance,
-			EndBalance:   endBalance,
-			CoinAmount:   coinAmount,
-			ContractNum:  contractNum,
-			BuyPrice:     sp.PriceUsd,
-			SalePrice:    epUsd,
-			BuyUsd:       buyUsd,
-			BuyMillTime:  st,
-			SaleMillTime: smt,
-			MaxRate:      conf.Config.Analyze.MaxRate,
-			Rate:         (epUsd - sp.PriceUsd) / sp.PriceUsd,
-			Fee:          fee,
-			Profit:       profit,
-		}
-		err = nco.Save()
-		if err != nil {
-			logger.Error("save contract order err: ", err)
-		}
-	}
-	printSum()
-}
-
-func printSum() {
-	cos, err := models.GetAllContractOrders(conf.Config.Analyze.Symbol)
-	if err != nil {
-		logger.Error("get contracts err: ", err)
-	}
-	sumBuyUsd := 0.0
-	endBalance := 0.0
-	sumProfit := 0.0
-	maxDepth := 1
-	sumFee := 0.0
-	maxCoinAmount := 0.0
-	for k, v := range cos {
-		sumBuyUsd += v.BuyUsd
-		sumProfit += v.Profit
-		if k == len(cos)-1 {
-			endBalance = v.EndBalance
-		}
-		if v.Depth > maxDepth {
-			maxDepth = v.Depth
-		}
-		sumFee += v.Fee
-		if v.CoinAmount > maxCoinAmount {
-			maxCoinAmount = v.CoinAmount
-		}
-	}
-	logger.Info("sum buy usd: ", sumBuyUsd, ", end banlance: ", endBalance, ", sum profit: ", sumProfit, ", max depth: ", maxDepth, ", sum fee: ", sumFee, ", max coin amount: ", maxCoinAmount)
-}
+//func fixBuyHour() {
+//	prices, err := models.GetPricesBySymbolAndTime(conf.Config.Analyze.Symbol, conf.Config.Analyze.StartMillTime, conf.Config.Analyze.EndMillTime)
+//	if err != nil {
+//		logger.Error("get prices " + err.Error())
+//		return
+//	}
+//	logger.Info("get prices len: ", len(prices))
+//	priceMap := make(map[int64]*models.Price, len(prices))
+//	for _, p := range prices {
+//		priceMap[p.MillUnixTime] = p
+//	}
+//
+//	t := util.GetTimeByMillUnixTime(conf.Config.Analyze.StartMillTime)
+//	m := util.GetMorningUnixTime(t)
+//	st := (m + int64(conf.Config.Analyze.BuyHour)*60*60) * 1000
+//
+//	for ; st < conf.Config.Analyze.EndMillTime; st += 24 * 60 * 60 * 1000 {
+//		t = util.GetTimeByMillUnixTime(st)
+//		date := util.GetDateByTime(t)
+//		logger.Info("deal date: ", date)
+//
+//		sp, ok := priceMap[st]
+//		if !ok {
+//			logger.Error("not have price: ", st)
+//			continue
+//		}
+//		et := st + int64(conf.Config.Analyze.MaxSaleHour-conf.Config.Analyze.BuyHour)*60*60*1000
+//		ep, ok := priceMap[et]
+//		if !ok {
+//			logger.Error("not have price: ", et)
+//			continue
+//		}
+//		epUsd := ep.PriceUsd
+//		smt := et
+//
+//		contractNum := conf.Config.Analyze.InitContractNum
+//		lastBalance := 0.0
+//		buyAmount := 0.0
+//		buyUsd := 0.0
+//		batchID := 1
+//		depth := 1
+//		fee := 0.0
+//
+//		co, err := models.GetLastContractOrder(conf.Config.Analyze.Symbol)
+//		if err == nil {
+//			// 同batch_id交易亏损
+//			//batchProfit := 0.0
+//			//cos, err := models.GetContractOrdersByBatchID(conf.Config.Analyze.Symbol, co.BatchID)
+//			//if err == nil {
+//			//	for _, bco := range cos {
+//			//		batchProfit += bco.Profit
+//			//	}
+//			//}
+//			if co.Profit < 0.0 {
+//				contractNum = 2 * co.ContractNum
+//				batchID = co.BatchID
+//				depth = co.Depth + 1
+//			} else {
+//				batchID = co.BatchID + 1
+//			}
+//			lastBalance = co.EndBalance
+//		}
+//
+//		contractUsd := 10.0 * float64(contractNum/20)
+//		coinAmount := contractUsd / sp.PriceUsd
+//		if lastBalance*sp.PriceUsd < contractUsd {
+//			buyUsd = contractUsd - lastBalance*sp.PriceUsd
+//			buyAmount = buyUsd / sp.PriceUsd
+//		}
+//
+//		for it := st; it <= et; it += 60 * 1000 {
+//			cp, ok := priceMap[st]
+//			if !ok {
+//				continue
+//			}
+//			// 上涨止损
+//			if cp.PriceUsd >= (1+conf.Config.Analyze.MaxRate)*sp.PriceUsd {
+//				smt = cp.MillUnixTime
+//				epUsd = (1 + conf.Config.Analyze.MaxRate) * sp.PriceUsd
+//				break
+//			} else if cp.PriceUsd <= (1-conf.Config.Analyze.MaxRate)*sp.PriceUsd {
+//				smt = cp.MillUnixTime
+//				epUsd = (1 - conf.Config.Analyze.MaxRate) * sp.PriceUsd
+//				break
+//			}
+//		}
+//		fee = 20*conf.Config.Analyze.BuyFeeRate*contractUsd/sp.PriceUsd + 20*conf.Config.Analyze.SaleFeeRate*contractUsd/epUsd
+//		profit := 20*(contractUsd/sp.PriceUsd-contractUsd/epUsd) - fee
+//		endBalance := lastBalance + buyAmount + profit
+//
+//		nco := &models.ContractOrder{
+//			Date:         date,
+//			Symbol:       conf.Config.Analyze.Symbol,
+//			BatchID:      batchID,
+//			Depth:        depth,
+//			StartBalance: lastBalance,
+//			EndBalance:   endBalance,
+//			CoinAmount:   coinAmount,
+//			ContractNum:  contractNum,
+//			BuyPrice:     sp.PriceUsd,
+//			SalePrice:    epUsd,
+//			BuyUsd:       buyUsd,
+//			BuyMillTime:  st,
+//			SaleMillTime: smt,
+//			MaxRate:      conf.Config.Analyze.MaxRate,
+//			Rate:         (epUsd - sp.PriceUsd) / sp.PriceUsd,
+//			Fee:          fee,
+//			Profit:       profit,
+//		}
+//		err = nco.Save()
+//		if err != nil {
+//			logger.Error("save contract order err: ", err)
+//		}
+//	}
+//	printSum()
+//}
+//
+//func printSum() {
+//	cos, err := models.GetAllContractOrders(conf.Config.Analyze.Symbol)
+//	if err != nil {
+//		logger.Error("get contracts err: ", err)
+//	}
+//	sumBuyUsd := 0.0
+//	endBalance := 0.0
+//	sumProfit := 0.0
+//	maxDepth := 1
+//	sumFee := 0.0
+//	maxCoinAmount := 0.0
+//	for k, v := range cos {
+//		sumBuyUsd += v.BuyUsd
+//		sumProfit += v.Profit
+//		if k == len(cos)-1 {
+//			endBalance = v.EndBalance
+//		}
+//		if v.Depth > maxDepth {
+//			maxDepth = v.Depth
+//		}
+//		sumFee += v.Fee
+//		if v.CoinAmount > maxCoinAmount {
+//			maxCoinAmount = v.CoinAmount
+//		}
+//	}
+//	logger.Info("sum buy usd: ", sumBuyUsd, ", end banlance: ", endBalance, ", sum profit: ", sumProfit, ", max depth: ", maxDepth, ", sum fee: ", sumFee, ", max coin amount: ", maxCoinAmount)
+//}
 
 func printProfitCosToExcel(k, hour int, symbol, sd, ed string, cos []*models.ContractOrder) {
 	sumUsd := 0.0
