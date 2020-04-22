@@ -67,6 +67,7 @@ type ConfigTOML struct {
 		Symbols         []string `required:"true" flagUsage:"分析的币种，如BTC"`
 		StartTimes      []string `required:"true" flagUsage:"分析数据的开始时间，毫秒"`
 		EndTimes        []string `required:"true" flagUsage:"分析数据的结束时间，毫秒"`
+		BuyMoney        float64  `required:"true" flagUsage:"每次买入金额"`
 		BuyHour         int      `required:"true" flagUsage:"当天买入时间，1-23"`
 		MaxSaleHour     int      `required:"true" flagUsage:"当天最晚卖出时间，2-24"`
 		MaxRate         float64  `required:"true" flagUsage:"最大幅度，0.02"`

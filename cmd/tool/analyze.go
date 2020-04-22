@@ -8,6 +8,7 @@ import (
 	"az-fin/library/log"
 	"az-fin/library/util"
 	"az-fin/models"
+	"encoding/json"
 	"errors"
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/urfave/cli"
@@ -23,7 +24,7 @@ var f *excelize.File
 // 3：多头，策略与空头一样
 // 4：随机买，每次只开20张合约，根据最大金额/10，得出买入次数，根据数据库条数除以次数得出随机范围
 // 5：分析周一到周日哪天买平均价格值最小的次数最多
-// 6：分析周一到周日哪个小时买入后浮动f%卖出会最大收益，本金和利润分别是多少
+// 6：分析周日随机买入x$后上浮动f%卖出，手续费为r%会最大收益，本金和利润分别是多少
 
 var Analyze = cli.Command{
 	Name:  "analyze",
@@ -107,6 +108,10 @@ func runAnalyze(c *cli.Context) {
 			case consts.ANALYZE_WEEKLY_LOW_PRICE:
 				// 开始时间从一个周一开始
 				weeklyLowPrice(symbols[i], priceMap, startTime, endTime)
+			case consts.ANALYZE_SUNNDAY_RANDOM_BUY:
+				db.DB.Delete(models.Order{})
+				db.DB.Delete(models.Profit{})
+				sunndayRandomBuy(symbols[i], priceMap, startTime, endTime)
 			}
 		}
 		//break
@@ -114,6 +119,124 @@ func runAnalyze(c *cli.Context) {
 	if err := f.SaveAs(consts.DATA_BASE_DIR + "data.xlsx"); err != nil {
 		logger.Error("err: ", err)
 	}
+}
+
+func sunndayRandomBuy(symbol string, priceMap map[int64]*models.Price, startTime, endTime int64) error {
+	k := 0
+	for rate := 0.11; rate <= 0.30; rate += 0.01 {
+		perMoney := conf.Config.Analyze.BuyMoney
+		var orders []*models.Order
+		var profits []*models.Profit
+		dayOrderMap := make(map[string]*models.Order)
+		for umt := startTime; umt < endTime; umt += 60 * 1000 {
+			sp, ok := priceMap[umt]
+			if !ok {
+				continue
+			}
+			t := util.GetTimeByMillUnixTime(umt)
+			day := util.GetDateByTime(t)
+			//if "Sunday" == t.Weekday().String() {
+			if _, ok := dayOrderMap[day]; !ok {
+				amount := conf.Config.Analyze.BuyMoney / sp.PriceUsd
+				fee := sp.PriceUsd * amount * conf.Config.Analyze.BuyFeeRate
+				amount -= amount * conf.Config.Analyze.BuyFeeRate
+				order := &models.Order{
+					StrategyID:    consts.ANALYZE_SUNNDAY_RANDOM_BUY,
+					Money:         conf.Config.Analyze.BuyMoney,
+					Price:         sp.PriceUsd,
+					Amount:        amount,
+					Fee:           fee,
+					Type:          consts.OrderTypeBuy,
+					Status:        consts.OrderStatusSuccess,
+					Ts:            umt / 1000,
+					ExternalID:    "",
+					RefrencePrice: sp.PriceUsd,
+				}
+				//order.Save()
+				orders = append(orders, order)
+				dayOrderMap[day] = order
+			}
+			//}
+			for _, o := range orders {
+				if o.Type == consts.OrderTypeBuy && o.Status == consts.OrderStatusSuccess {
+					if sp.PriceUsd/o.Price-1 > rate {
+						o.Status = consts.OrderStatusSettle
+						fee := sp.PriceUsd * o.Amount * conf.Config.Analyze.SaleFeeRate
+						money := sp.PriceUsd*o.Amount - fee
+						order := &models.Order{
+							StrategyID:    consts.ANALYZE_SUNNDAY_RANDOM_BUY,
+							Money:         money,
+							Price:         sp.PriceUsd,
+							Amount:        o.Amount,
+							Fee:           fee,
+							Type:          consts.OrderTypeSale,
+							Status:        consts.OrderStatusSettle,
+							Ts:            umt / 1000,
+							ExternalID:    "",
+							RefrencePrice: sp.PriceUsd,
+						}
+						//order.Save()
+						orders = append(orders, order)
+						p, err := settle(o, order)
+						if err == nil {
+							profits = append(profits, p)
+						}
+					}
+				}
+			}
+		}
+		sumProfit := 0.0
+		unsaleMoney := 0.0
+		unSaleBtc := 0.0
+		for _, o := range orders {
+			if o.Type == consts.OrderTypeBuy && o.Status == consts.OrderStatusSuccess {
+				unSaleBtc += o.Amount
+				unsaleMoney += o.Money
+			}
+		}
+		for _, p := range profits {
+			sumProfit += p.Profit
+		}
+		k++
+		axis := "A" + strconv.Itoa(k)
+		logger.Info("axis:", axis, ", symbol: ", symbol, ", sd: ", startTime, ", ed: ", endTime, ", per_money: ", perMoney, ", float_rate: ", rate, ", sum_profit: ", sumProfit, ", unsale_money: ", unsaleMoney, ", unsale_btc: ", unSaleBtc)
+		f.SetSheetRow("Sheet1", axis, &[]interface{}{symbol, startTime, endTime, perMoney, rate, sumProfit, unsaleMoney, unSaleBtc})
+	}
+
+	return nil
+}
+
+// 结算买单和卖单
+func settle(bo, so *models.Order) (*models.Profit, error) {
+	bo.Status = consts.OrderStatusSettle
+	//err := bo.Save()
+	//if err != nil {
+	//	return nil, err
+	//}
+	so.Status = consts.OrderStatusSettle
+	//err = so.Save()
+	//if err != nil {
+	//	return nil, err
+	//}
+	fee := so.Fee + bo.Fee
+	ids := []uint{bo.ID, so.ID}
+	idsByte, _ := json.Marshal(ids)
+	day := util.GetDateByTime(util.GetTimeByMillUnixTime(so.Ts))
+	p := &models.Profit{
+		StrategyID:  consts.ANALYZE_SUNNDAY_RANDOM_BUY,
+		TotalAmount: conf.Config.Analyze.BuyMoney,
+		Depth:       1,
+		FloatRate:   conf.Config.Analyze.MaxRate,
+		Capital:     bo.Money,
+		InCome:      so.Money,
+		Fee:         fee,
+		Profit:      so.Money - bo.Money,
+		Reason:      "sunnday_random_buy",
+		Day:         day,
+		Orders:      string(idsByte),
+	}
+	//err = p.Save()
+	return p, nil
 }
 
 func weeklyLowPrice(symbol string, priceMap map[int64]*models.Price, startTime, endTime int64) {

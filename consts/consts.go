@@ -20,6 +20,21 @@ const (
 	ANALYZE_MORE_ORDER_MAX_DEPTH
 	ANALYZE_RANDOM_BUY
 	ANALYZE_WEEKLY_LOW_PRICE
+	ANALYZE_SUNNDAY_RANDOM_BUY
 )
 
 const DATA_BASE_DIR = "./data/"
+
+const (
+	OrderTypeUnkown = iota
+	OrderTypeBuy
+	OrderTypeSale
+)
+
+const (
+	OrderStatusUnkown = iota
+	OrderStatusSuccess
+	OrderStatusBuy
+	OrderStatusCancel
+	OrderStatusSettle
+)

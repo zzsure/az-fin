@@ -19,11 +19,15 @@ func CreateTable() {
 	db.DB.DropTableIfExists(&Price{})
 	db.DB.DropTableIfExists(&Contract{})
 	db.DB.DropTableIfExists(&ContractOrder{})
+	db.DB.DropTableIfExists(&Order{})
+	db.DB.DropTableIfExists(&Profit{})
 	create := db.DB.Set("gorm:table_options", "ENGINE=InnoDB CHARSET=utf8")
 	create.CreateTable(&Asset{})
 	create.CreateTable(&Price{})
 	create.CreateTable(&Contract{})
 	create.CreateTable(&ContractOrder{})
+	create.CreateTable(&Order{})
+	create.CreateTable(&Profit{})
 }
 
 func MigrateTable() {
@@ -32,4 +36,6 @@ func MigrateTable() {
 	create.AutoMigrate(&Price{})
 	create.AutoMigrate(&Contract{})
 	create.AutoMigrate(&ContractOrder{})
+	create.AutoMigrate(&Order{})
+	create.AutoMigrate(&Profit{})
 }
