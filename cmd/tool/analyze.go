@@ -25,6 +25,7 @@ var f *excelize.File
 // 4：随机买，每次只开20张合约，根据最大金额/10，得出买入次数，根据数据库条数除以次数得出随机范围
 // 5：分析周一到周日哪天买平均价格值最小的次数最多
 // 6：分析周日随机买入x$后上浮动f%卖出，手续费为r%会最大收益，本金和利润分别是多少
+// 7：分析一段时间内，每日小时购买的最低数最大的值
 
 var Analyze = cli.Command{
 	Name:  "analyze",
@@ -112,6 +113,8 @@ func runAnalyze(c *cli.Context) {
 				db.DB.Delete(models.Order{})
 				db.DB.Delete(models.Profit{})
 				sunndayRandomBuy(symbols[i], priceMap, startTime, endTime)
+			case consts.ANALYZE_DAILY_HOUR:
+				dailyHour(symbols[i], priceMap, startTime, endTime)
 			}
 		}
 		//break
@@ -119,6 +122,38 @@ func runAnalyze(c *cli.Context) {
 	if err := f.SaveAs(consts.DATA_BASE_DIR + "data.xlsx"); err != nil {
 		logger.Error("err: ", err)
 	}
+}
+
+func dailyHour(symbol string, priceMap map[int64]*models.Price, startTime, endTime int64) error {
+	dayPriceMap := make(map[string]float64)
+	dayHourMap := make(map[string]int)
+
+	for umt := startTime; umt < endTime; umt += 60 * 60 * 1000 {
+		sp, ok := priceMap[umt]
+		if !ok {
+			continue
+		}
+
+		t := util.GetTimeByMillUnixTime(umt)
+		day := util.GetDateByTime(t)
+		if _, ok := dayPriceMap[day]; ok {
+			if sp.PriceUsd < dayPriceMap[day] {
+				dayPriceMap[day] = sp.PriceUsd
+				dayHourMap[day] = t.Hour()
+			}
+		} else {
+			dayPriceMap[day] = sp.PriceUsd
+			dayHourMap[day] = t.Hour()
+		}
+	}
+	hourCntMap := make(map[int]int)
+	for _, dayHour := range dayHourMap {
+		hourCntMap[dayHour]++
+	}
+	for hour, cnt := range hourCntMap {
+		logger.Info("hour: ", hour, "cnt: ", hour, cnt)
+	}
+	return nil
 }
 
 func sunndayRandomBuy(symbol string, priceMap map[int64]*models.Price, startTime, endTime int64) error {
