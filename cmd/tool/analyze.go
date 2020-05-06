@@ -102,7 +102,7 @@ func runAnalyze(c *cli.Context) {
 				for hour := 1; hour <= conf.Config.Analyze.MaxRandomHour; hour++ {
 					k++
 					cos = bearOrderMaxDepth(priceMap, startTime, endTime, hour, analyzeType)
-					printProfitCosToExcel(k, hour, symbols[i], startTimes[j], endTimes[j], cos)
+					printProfitCosToExcel(k, hour, conf.Config.Analyze.MaxRate, symbols[i], startTimes[j], endTimes[j], cos)
 				}
 			case consts.ANALYZE_RANDOM_BUY:
 				randomBuy()
@@ -115,6 +115,12 @@ func runAnalyze(c *cli.Context) {
 				sunndayRandomBuy(symbols[i], priceMap, startTime, endTime)
 			case consts.ANALYZE_DAILY_HOUR:
 				dailyHour(symbols[i], priceMap, startTime, endTime)
+			case consts.ANALYZE_APPRO_RATE:
+				for rate := 0.01; rate <= conf.Config.Analyze.MaxRate; rate += 0.01 {
+					k++
+					cos = approRate(priceMap, startTime, endTime, rate, analyzeType)
+					printProfitCosToExcel(k, 1, rate, symbols[i], startTimes[j], endTimes[j], cos)
+				}
 			}
 		}
 		//break
@@ -316,6 +322,58 @@ func randomBuy() {
 	// 根据最大金额，
 }
 
+func approRate(priceMap map[int64]*models.Price, startTime, endTime int64, rate float64, contractType int) []*models.ContractOrder {
+	logger.Info("start_time: ", startTime, ", end_time:", endTime)
+	var cos []*models.ContractOrder
+	for st := startTime; st < endTime; st += 60 * 1000 {
+		t := util.GetTimeByMillUnixTime(st)
+		date := util.GetDateByTime(t)
+
+		sp, ok := priceMap[st]
+		if !ok {
+			//logger.Error("not have price: ", st)
+			continue
+		}
+
+		buyUsd := 0.0
+		if len(cos) == 0 {
+			buyUsd = 10.0 * float64(conf.Config.Analyze.InitContractNum/20)
+			co := buyOrder(date, 1, 1, conf.Config.Analyze.InitContractNum, 0.0, buyUsd, sp)
+			cos = append(cos, co)
+		} else {
+			lastCo := cos[len(cos)-1]
+			// 如果处于买的状态，需要判断是否卖
+			if lastCo.Status == 1 && (sp.PriceUsd >= (1+rate)*lastCo.BuyPrice || sp.PriceUsd <= (1-rate)*lastCo.BuyPrice) {
+				err := saleOrder(lastCo, sp, contractType)
+				if err != nil {
+					logger.Error("sale err: ", err)
+				}
+			} else if lastCo.Status == 2 {
+				hour := lastCo.Depth * 4
+				if (sp.MillUnixTime - int64(hour*60*60*1000)) > lastCo.SaleMillTime {
+					contractNum := conf.Config.Analyze.InitContractNum
+					batchID := lastCo.BatchID
+					depth := 1
+					if lastCo.Profit < 0 && lastCo.Depth < conf.Config.Analyze.MaxDepth {
+						contractNum = 2 * lastCo.ContractNum
+						depth = lastCo.Depth + 1
+					} else {
+						batchID++
+					}
+					contractUsd := 10.0 * float64(contractNum/20)
+					lastBalance := lastCo.EndBalance
+					if lastBalance*sp.PriceUsd < contractUsd {
+						buyUsd = contractUsd - lastBalance*sp.PriceUsd
+					}
+					co := buyOrder(date, batchID, depth, contractNum, lastBalance, buyUsd, sp)
+					cos = append(cos, co)
+				}
+			}
+		}
+	}
+	return cos
+}
+
 func bearOrderMaxDepth(priceMap map[int64]*models.Price, startTime, endTime int64, hour, contractType int) []*models.ContractOrder {
 	logger.Info("start_time: ", startTime, ", end_time:", endTime)
 	var cos []*models.ContractOrder
@@ -374,8 +432,10 @@ func saleOrder(co *models.ContractOrder, price *models.Price, t int) error {
 	contractUsd := 10.0 * float64(co.ContractNum/20)
 	co.Fee = 20*conf.Config.Analyze.BuyFeeRate*contractUsd/co.BuyPrice + 20*conf.Config.Analyze.SaleFeeRate*contractUsd/price.PriceUsd
 	if t == consts.ANALYZE_BEAR_ORDER_FIX_BUY_HOUR || t == consts.ANALYZE_BEAR_ORDER_MAX_DEPTH {
+		// 看空
 		co.Profit = 20*(contractUsd/price.PriceUsd-contractUsd/co.BuyPrice) - co.Fee
-	} else if t == consts.ANALYZE_MORE_ORDER_MAX_DEPTH {
+	} else if t == consts.ANALYZE_MORE_ORDER_MAX_DEPTH || t == consts.ANALYZE_APPRO_RATE {
+		// 看多
 		co.Profit = 20*(contractUsd/co.BuyPrice-contractUsd/price.PriceUsd) - co.Fee
 	} else {
 		return errors.New("type is wrong")
@@ -559,7 +619,7 @@ func buyOrder(date string, batchID, depth, contractNum int, lastBalance, buyUsd 
 //	logger.Info("sum buy usd: ", sumBuyUsd, ", end banlance: ", endBalance, ", sum profit: ", sumProfit, ", max depth: ", maxDepth, ", sum fee: ", sumFee, ", max coin amount: ", maxCoinAmount)
 //}
 
-func printProfitCosToExcel(k, hour int, symbol, sd, ed string, cos []*models.ContractOrder) {
+func printProfitCosToExcel(k, hour int, rate float64, symbol, sd, ed string, cos []*models.ContractOrder) {
 	sumUsd := 0.0
 	endBalance := 0.0
 	profit := 0.0
@@ -582,5 +642,5 @@ func printProfitCosToExcel(k, hour int, symbol, sd, ed string, cos []*models.Con
 	}
 	logger.Info("symbol: ", symbol, ", sd: ", sd, ", ed: ", ed, ", sum_usd: ", sumUsd, ", end_balance: ", endBalance, ", profit: ", profit, ", max_depth: ", maxDepth, ", sum_fee: ", sumFee)
 	axis := "A" + strconv.Itoa(k)
-	f.SetSheetRow("Sheet1", axis, &[]interface{}{symbol, sd, ed, hour, sumUsd, endBalance, profit, maxDepth, sumFee})
+	f.SetSheetRow("Sheet1", axis, &[]interface{}{symbol, hour, sd, ed, rate, sumUsd, endBalance, profit, maxDepth, sumFee})
 }
