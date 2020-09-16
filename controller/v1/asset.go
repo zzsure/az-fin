@@ -19,13 +19,13 @@ import (
 
 func PriceExcel(c *gin.Context) {
 	const NUM = 13
-	coinCapIDs := [NUM]string{"bitcoin", "ethereum", "ripple", "bitcoin-cash", "litecoin", "binance-coin", "eos", "bitcoin-sv", "monero", "huobi-token", "ethereum-classic", "dash", "zcash"}
+	coinCapIDs := [NUM]string{"bitcoin", "ethereum", "xrp", "bitcoin-cash", "litecoin", "binance-coin", "eos", "bitcoin-sv", "monero", "huobi-token", "ethereum-classic", "dash", "zcash"}
 	prices := [NUM]float64{}
 	var err error
 	for idx, id := range coinCapIDs {
 		prices[idx], err = getCoinCapPrice(id)
 		if err != nil {
-			response.ServerLogErr(c, logger, "get coincap price not float: "+err.Error())
+			response.ServerLogErr(c, logger, "get coincap price: "+err.Error())
 			return
 		}
 	}
@@ -35,7 +35,7 @@ func PriceExcel(c *gin.Context) {
 	}
 	rmbRate, err := getRate(consts.RMB_COINCAP_ID)
 	if err != nil {
-		response.ServerLogErr(c, logger, "get coincap price not float: "+err.Error())
+		response.ServerLogErr(c, logger, "get coincap rate: "+err.Error())
 		return
 	}
 	priceText += fmt.Sprintf("%f", rmbRate)
@@ -126,7 +126,8 @@ func getRate(id string) (float64, error) {
 func getCoinCapPrice(id string) (float64, error) {
 	url := util.GetURL(consts.COINCAP_URL, consts.ASSETS_URI)
 	// TODO:优化多个一起查询
-	url = fmt.Sprintf("%s?ids=", url, id)
+	url = fmt.Sprintf("%s/%s", url, id)
+	logger.Info("url is: %s", url)
 	b, err := http.Get(url, nil)
 	if err != nil {
 		return 0.0, err
