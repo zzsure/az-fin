@@ -30,11 +30,11 @@ PoolSize = 5
 Type = "raw"
 
 [History]
-CoinCapID = "bitcoin"
-Symbol = "BTC"
+CoinCapID = "bitcoin-sv"
+Symbol = "BSV"
 Interval = "m1"
-StartMillTime = 1577808000000
-EndMillTime = 1577980800000
+StartMillTime = 1582387200000
+EndMillTime = 1592409600000
 MaxSleepSecond = 20
 
 [Contract]
@@ -50,7 +50,7 @@ Symbols = ["BTC"]
 #StartTimes = ["2017-01-01", "2018-01-01", "2019-01-01", "2017-12-01"]
 #EndTimes = ["2018-01-01", "2019-01-01", "2020-01-01", "2020-01-01"]
 StartTimes = ["2017-01-01"]
-EndTimes = ["2020-06-18"]
+EndTimes = ["2020-01-01"]
 BuyMoney = 10.0
 BuyHour = 9
 MaxSaleHour = 21

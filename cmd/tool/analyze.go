@@ -10,6 +10,7 @@ import (
 	"az-fin/models"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/urfave/cli"
 	"math"
@@ -26,6 +27,8 @@ var f *excelize.File
 // 5：分析周一到周日哪天买平均价格值最小的次数最多
 // 6：分析周日随机买入x$后上浮动f%卖出，手续费为r%会最大收益，本金和利润分别是多少
 // 7：分析一段时间内，每日小时购买的最低数最大的值
+// 8：每日凌晨购买，合适的卖出的浮动比例
+// 9: 分析周一到周日小时时间买入利润最高，[0-5000):50$,[5000,10000):40$,[10000,15000):30$,[15000,20000):20$,[20000,*):10$
 
 var Analyze = cli.Command{
 	Name:  "analyze",
@@ -112,21 +115,66 @@ func runAnalyze(c *cli.Context) {
 			case consts.ANALYZE_SUNNDAY_RANDOM_BUY:
 				db.DB.Delete(models.Order{})
 				db.DB.Delete(models.Profit{})
-				sunndayRandomBuy(symbols[i], priceMap, startTime, endTime)
+				_ = sunndayRandomBuy(symbols[i], priceMap, startTime, endTime)
 			case consts.ANALYZE_DAILY_HOUR:
-				dailyHour(symbols[i], priceMap, startTime, endTime)
+				_ = dailyHour(symbols[i], priceMap, startTime, endTime)
 			case consts.ANALYZE_APPRO_RATE:
 				for rate := 0.01; rate <= conf.Config.Analyze.MaxRate; rate += 0.01 {
 					k++
 					cos = approRate(priceMap, startTime, endTime, rate, analyzeType)
 					printProfitCosToExcel(k, 1, rate, symbols[i], startTimes[j], endTimes[j], cos)
 				}
+			case consts.ANALYZE_AUTO_INVEST:
+				autoInvest(symbols[i], priceMap, startTime, endTime)
 			}
 		}
 		//break
 	}
 	if err := f.SaveAs(consts.DATA_BASE_DIR + "data.xlsx"); err != nil {
 		logger.Error("err: ", err)
+	}
+}
+
+func autoInvest(symbol string, priceMap map[int64]*models.Price, startTime, endTime int64) {
+	buyMap := make(map[string]bool)
+	amountMap := make(map[string]float64)
+	symbolMap := make(map[string]float64)
+	for umt := startTime; umt < endTime; umt += 60 * 60 * 1000 {
+		sp, ok := priceMap[umt]
+		if !ok {
+			continue
+		}
+		t := util.GetTimeByMillUnixTime(umt)
+		day := util.GetDateByTime(t)
+		key1 := fmt.Sprintf("%v-%v", t.Weekday(), t.Hour())
+		key2 := fmt.Sprintf("%v-%v-%v", day, t.Weekday(), t.Hour())
+		logger.Info("umt:", umt, ", key1: ", key1, ", key2:", key2)
+		amount := 10.0
+		if sp.PriceUsd < 5000 {
+			amount = 50.0
+		} else if sp.PriceUsd >= 5000 && sp.PriceUsd < 10000 {
+			amount = 40.0
+		} else if sp.PriceUsd >= 10000 && sp.PriceUsd < 15000 {
+			amount = 30.0
+		} else if sp.PriceUsd >= 15000 && sp.PriceUsd < 20000 {
+			amount = 20.0
+		} else {
+			amount = 10.0
+		}
+		if _, ok = buyMap[key2]; !ok {
+			amountMap[key1] += amount
+			symbolMap[key1] += amount / sp.PriceUsd
+			buyMap[key2] = true
+		}
+	}
+	idx := 1
+	for k, v := range amountMap {
+		if _, ok := symbolMap[k]; ok {
+			axis := "A" + strconv.Itoa(idx)
+			f.SetSheetRow("Sheet1", axis, &[]interface{}{symbol, k, v, symbolMap[k]})
+			idx++
+			logger.Info(k, ",", v, ",", symbolMap[k])
+		}
 	}
 }
 

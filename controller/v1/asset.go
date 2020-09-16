@@ -125,7 +125,8 @@ func getRate(id string) (float64, error) {
 
 func getCoinCapPrice(id string) (float64, error) {
 	url := util.GetURL(consts.COINCAP_URL, consts.ASSETS_URI)
-	url = fmt.Sprintf("%s/%s", url, id)
+	// TODO:优化多个一起查询
+	url = fmt.Sprintf("%s?ids=", url, id)
 	b, err := http.Get(url, nil)
 	if err != nil {
 		return 0.0, err
