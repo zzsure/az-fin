@@ -15,16 +15,25 @@ import (
 	"github.com/gin-gonic/gin"
 	goRedis "github.com/go-redis/redis"
 	"strconv"
+	"time"
 )
 
 func PriceExcel(c *gin.Context) {
+	const tryTimes = 20
 	const NUM = 17
 	coinCapIDs := [NUM]string{"bitcoin", "ethereum", "xrp", "bitcoin-cash", "litecoin", "binance-coin", "eos",
 		"bitcoin-sv", "monero", "huobi-token", "ethereum-classic", "dash", "zcash", "chainlink", "polkadot", "tron", "yearn-finance"}
 	prices := [NUM]float64{}
 	var err error
 	for idx, id := range coinCapIDs {
-		prices[idx], err = getCoinCapPrice(id)
+		for tryTime := 0; tryTime < tryTimes; tryTime++ {
+			prices[idx], err = getCoinCapPrice(id)
+			if err == nil {
+				break
+			}
+			time.Sleep(time.Duration(1) * time.Second)
+			tryTime++
+		}
 		if err != nil {
 			response.ServerLogErr(c, logger, "get coincap price: "+err.Error())
 			return
@@ -133,7 +142,10 @@ func getCoinCapPrice(id string) (float64, error) {
 	if err != nil {
 		return 0.0, err
 	}
-	data, _, _, _ := jsonparser.Get(b, "data")
+	data, _, _, err := jsonparser.Get(b, "data")
+	if nil != err {
+		return 0.0, err
+	}
 	var assetResult response.AssetResult
 	if err := json.Unmarshal(data, &assetResult); err != nil {
 		return 0.0, err
